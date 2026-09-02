@@ -1,0 +1,10 @@
+const { DatabaseSync } = require('node:sqlite');
+const d = new DatabaseSync(process.argv[2] || 'data/versions/V002-post-git-baseline.db');
+const t = d.prepare("SELECT count(*) c FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").get().c;
+const variants = d.prepare('SELECT count(*) c FROM variants').get().c;
+const components = d.prepare('SELECT count(*) c FROM components').get().c;
+const subjects = d.prepare('SELECT count(*) c FROM subjects').get().c;
+const progress = d.prepare('SELECT count(*) c FROM user_progress').get().c;
+const integ = d.prepare('PRAGMA integrity_check').get()['integrity_check'];
+console.log({ tables: t, subjects, components, variants, progress, integrity: integ });
+d.close();
