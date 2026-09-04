@@ -1,370 +1,929 @@
-// Data-driven Cambridge catalogue.
+// O-Level Mauritius past paper catalogue.
 //
-// IMPORTANT DESIGN RULES (per the 28-point rebuild):
-//   * The database is the single source of truth. Nothing here is generated
-//     algorithmically and no variant pattern is shared across subjects or
-//     sessions.
-//   * A `component` = one Paper within a subject/session, identified by
-//     (paper_number, paper_type). paper_type is genuine syllabus knowledge
-//     for the subject, NOT copied from other subjects.
-//   * A `variant` = a specific variant (e.g. 12) of a component. Variants are
-//     only authored where there is explicit knowledge (web-verified) or where
-//     they are stated per-subject. If a component's per-session variant list
-//     is unknown it is omitted; absent data is never invented.
-//   * `verified: true` is set ONLY for structures confirmed against
-//     authoritative sources. Everything else is left unverified so it appears
-//     in the final review list.
+// Zone 4 variant rules:
+//   May/June:          Primary variant digit = 1 (codes: 11, 21, 31, 41)
+//   October/November:  Primary variant digit = 2 (codes: 12, 22, 32, 42)
 //
-// Session field values: 'mj' = May/June, 'on' = October/November.
+// For multi-variant papers, secondary variants follow in descending order.
+// For single-variant regional papers (e.g. 1125 English, 3014 French,
+// Asian languages, 2055 Hinduism), use only the primary component number
+// (e.g. 11, 21 or Paper 01, 02).
 
-const qualifications = [
-  { name: 'Cambridge O Level', short_name: 'O Level' },
-  { name: 'Cambridge IGCSE', short_name: 'IGCSE' },
-  { name: 'Cambridge AS Level', short_name: 'AS Level' },
-  { name: 'Cambridge A Level', short_name: 'A Level' },
+const O_LEVEL_PAPERS = [
+  // ---------------------------------------------------------------------------
+  // Core standard subjects (Zone 4, multi-variant)
+  // ---------------------------------------------------------------------------
+  {
+    code: "1123",
+    name: "English Language",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Writing)", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2 (Reading)", components: ["21", "22", "23"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Writing)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Reading)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "2210",
+    name: "Computer Science",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Theory)", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2 (Problem-Solving & Programming)", components: ["21", "22", "23"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Theory)", components: ["12"] },
+          { number: 2, name: "Paper 2 (Problem-Solving & Programming)", components: ["22"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "4024",
+    name: "Mathematics (Syllabus D)",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Non-Calculator)", components: ["12", "13"] },
+          { number: 2, name: "Paper 2 (Calculator)", components: ["22", "23"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Non-Calculator)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Calculator)", components: ["21", "22"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "4037",
+    name: "Additional Mathematics",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2", components: ["21", "22", "23"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["12", "11"] },
+          { number: 2, name: "Paper 2", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "5054",
+    name: "Physics",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["21", "22", "23"] },
+          { number: 3, name: "Paper 3 (Practical Test)", components: ["31", "32"] },
+          { number: 4, name: "Paper 4 (Alternative to Practical)", components: ["41", "42"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["22", "21"] },
+          { number: 4, name: "Paper 4 (Alternative to Practical)", components: ["42", "41"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "5070",
+    name: "Chemistry",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["21", "22", "23"] },
+          { number: 3, name: "Paper 3 (Practical Test)", components: ["31", "32"] },
+          { number: 4, name: "Paper 4 (Alternative to Practical)", components: ["41", "42"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["22", "21"] },
+          { number: 4, name: "Paper 4 (Alternative to Practical)", components: ["42", "41"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "5090",
+    name: "Biology",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["21", "22", "23"] },
+          { number: 3, name: "Paper 3 (Practical Test)", components: ["31", "32"] },
+          { number: 4, name: "Paper 4 (Alternative to Practical)", components: ["41", "42"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["22", "21"] },
+          { number: 4, name: "Paper 4 (Alternative to Practical)", components: ["42", "41"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "2281",
+    name: "Economics",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2 (Structured)", components: ["21", "22", "23"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["12"] },
+          { number: 2, name: "Paper 2 (Structured)", components: ["22"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "7707",
+    name: "Accounting",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2 (Structured)", components: ["21", "22", "23"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["12"] },
+          { number: 2, name: "Paper 2 (Structured)", components: ["22"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "2217",
+    name: "Geography",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Physical Geography)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Human Geography)", components: ["21", "22"] },
+          { number: 3, name: "Paper 3 (Geographical Investigations)", components: ["31", "32"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Physical Geography)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Human Geography)", components: ["22", "21"] },
+          { number: 3, name: "Paper 3 (Geographical Investigations)", components: ["32", "31"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "2251",
+    name: "Sociology",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Research Methods, Identity and Inequality)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Family, Education and Crime)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Research Methods, Identity and Inequality)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Family, Education and Crime)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "5014",
+    name: "Environmental Management",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Principles of Environmental Management)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Environmental Management in Context)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Principles of Environmental Management)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Environmental Management in Context)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "7115",
+    name: "Business Studies",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Short Answer and Data Response)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Case Study)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Short Answer and Data Response)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Case Study)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "2010",
+    name: "Literature in English",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Poetry and Prose)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Drama)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Poetry and Prose)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Drama)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "2147",
+    name: "History",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Structured Questions)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Document Questions)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Structured Questions)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Document Questions)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "4040",
+    name: "Statistics",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11", "12"] },
+          { number: 2, name: "Paper 2", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["12", "11"] },
+          { number: 2, name: "Paper 2", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "5129",
+    name: "Combined Science",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["21", "22"] },
+          { number: 3, name: "Paper 3 (Practical Test)", components: ["31", "32"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["22", "21"] },
+          { number: 3, name: "Paper 3 (Practical Test)", components: ["32", "31"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "7100",
+    name: "Commerce",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Short Answer and Data Response)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Case Study)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Short Answer and Data Response)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Case Study)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // Additional core subjects (Zone 4, multi-variant)
+  // ---------------------------------------------------------------------------
+  {
+    code: "0625",
+    name: "Physics (IGCSE)",
+    qualification: "IGCSE",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["21", "22", "23"] },
+          { number: 3, name: "Paper 3 (Extended Theory)", components: ["31", "32", "33"] },
+          { number: 4, name: "Paper 4 (Extended Theory)", components: ["41", "42", "43"] },
+          { number: 6, name: "Paper 6 (Alternative to Practical)", components: ["61", "62", "63"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["22", "21"] },
+          { number: 3, name: "Paper 3 (Extended Theory)", components: ["32", "31"] },
+          { number: 4, name: "Paper 4 (Extended Theory)", components: ["42", "41"] },
+          { number: 6, name: "Paper 6 (Alternative to Practical)", components: ["62", "61"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "0620",
+    name: "Chemistry (IGCSE)",
+    qualification: "IGCSE",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["21", "22", "23"] },
+          { number: 3, name: "Paper 3 (Extended Theory)", components: ["31", "32", "33"] },
+          { number: 4, name: "Paper 4 (Extended Theory)", components: ["41", "42", "43"] },
+          { number: 6, name: "Paper 6 (Alternative to Practical)", components: ["61", "62", "63"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["22", "21"] },
+          { number: 3, name: "Paper 3 (Extended Theory)", components: ["32", "31"] },
+          { number: 4, name: "Paper 4 (Extended Theory)", components: ["42", "41"] },
+          { number: 6, name: "Paper 6 (Alternative to Practical)", components: ["62", "61"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "0610",
+    name: "Biology (IGCSE)",
+    qualification: "IGCSE",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["21", "22", "23"] },
+          { number: 3, name: "Paper 3 (Extended Theory)", components: ["31", "32", "33"] },
+          { number: 4, name: "Paper 4 (Extended Theory)", components: ["41", "42", "43"] },
+          { number: 6, name: "Paper 6 (Alternative to Practical)", components: ["61", "62", "63"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["22", "21"] },
+          { number: 3, name: "Paper 3 (Extended Theory)", components: ["32", "31"] },
+          { number: 4, name: "Paper 4 (Extended Theory)", components: ["42", "41"] },
+          { number: 6, name: "Paper 6 (Alternative to Practical)", components: ["62", "61"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "0580",
+    name: "Mathematics (IGCSE)",
+    qualification: "IGCSE",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Core Multiple Choice)", components: ["11", "12", "13"] },
+          { number: 2, name: "Paper 2 (Core Short Answer)", components: ["21", "22", "23"] },
+          { number: 3, name: "Paper 3 (Extended Multiple Choice)", components: ["31", "32", "33"] },
+          { number: 4, name: "Paper 4 (Extended Problem Solving)", components: ["41", "42", "43"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Core Multiple Choice)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Core Short Answer)", components: ["22", "21"] },
+          { number: 3, name: "Paper 3 (Extended Multiple Choice)", components: ["32", "31"] },
+          { number: 4, name: "Paper 4 (Extended Problem Solving)", components: ["42", "41"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "0510",
+    name: "English as a Second Language (IGCSE)",
+    qualification: "IGCSE",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Listening)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Reading & Writing)", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Listening)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Reading & Writing)", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "0478",
+    name: "Computer Science (IGCSE)",
+    qualification: "IGCSE",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Theory)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Problem-Solving & Programming)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Theory)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Problem-Solving & Programming)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "0460",
+    name: "Geography (IGCSE)",
+    qualification: "IGCSE",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Core Geography)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Extended Geography)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Core Geography)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Extended Geography)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "0470",
+    name: "History (IGCSE)",
+    qualification: "IGCSE",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Core)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Extended)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Core)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Extended)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "0455",
+    name: "Economics (IGCSE)",
+    qualification: "IGCSE",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "0450",
+    name: "Business Studies (IGCSE)",
+    qualification: "IGCSE",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Short Answer & Data Response)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Case Study)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Short Answer & Data Response)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Case Study)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "0452",
+    name: "Accounting (IGCSE)",
+    qualification: "IGCSE",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["11", "12"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["21", "22"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Multiple Choice)", components: ["12", "11"] },
+          { number: 2, name: "Paper 2 (Theory)", components: ["22", "21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "2068",
+    name: "Islamic Religious Studies",
+    qualification: "O Level",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      }
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // Mauritius-specific regional subjects (single-variant, fixed component numbers)
+  // ---------------------------------------------------------------------------
+  {
+    code: "1125",
+    name: "English Language (Mauritius)",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Writing)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Reading)", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Writing)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Reading)", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "3014",
+    name: "French",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "2162",
+    name: "History (Mauritius and Modern World Affairs)",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Structured Questions)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Document Questions)", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Structured Questions)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Document Questions)", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "2055",
+    name: "Hinduism",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "3201",
+    name: "Hindi",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "3206",
+    name: "Tamil",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "3209",
+    name: "Urdu",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "3218",
+    name: "Marathi",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "3252",
+    name: "Modern Standard Chinese",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "3180",
+    name: "Arabic",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1", components: ["11"] },
+          { number: 2, name: "Paper 2", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "5016",
+    name: "Physical Education",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Theory)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Coursework)", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Theory)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Coursework)", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "6065",
+    name: "Food & Nutrition",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Theory)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Practical Test)", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Theory)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Practical Test)", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "6090",
+    name: "Art & Design",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Coursework)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Controlled Test)", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Coursework)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Controlled Test)", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "5038",
+    name: "Agriculture",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Theory)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Practical Test)", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Theory)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Practical Test)", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "6043",
+    name: "Design & Technology",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Design)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Project/Coursework)", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Design)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Project/Coursework)", components: ["21"] }
+        ]
+      }
+    }
+  },
+  {
+    code: "4054",
+    name: "Enterprise",
+    sessions: {
+      "May/June": {
+        papers: [
+          { number: 1, name: "Paper 1 (Short Answer and Data Response)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Case Study)", components: ["21"] }
+        ]
+      },
+      "October/November": {
+        papers: [
+          { number: 1, name: "Paper 1 (Short Answer and Data Response)", components: ["11"] },
+          { number: 2, name: "Paper 2 (Case Study)", components: ["21"] }
+        ]
+      }
+    }
+  }
 ];
 
-const SESSIONS = ['mj', 'on'];
-const YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
+const YEARS = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
 
-// ---------------------------------------------------------------------------
-// Per-session structures that have been VERIFIED against authoritative/web
-// sources during the audit. Key: `${code}|${year}|${session}`.
-// Value: array of { paperNumber, paperType, variants, verified: true }.
-// ---------------------------------------------------------------------------
-const VERIFIED = {
-  // ---- O Level Mathematics (Syllabus D) 4024 ----
-  '4024|2025|mj': [
-    { paperNumber: 1, paperType: 'theory', variants: [12, 13] },
-    { paperNumber: 2, paperType: 'theory', variants: [22, 23] },
-  ],
-  '4024|2025|on': [
-    { paperNumber: 1, paperType: 'theory', variants: [11, 12] },
-    { paperNumber: 2, paperType: 'theory', variants: [21, 22] },
-  ],
-  // ---- IGCSE Physics 0625 ----
-  '0625|2025|mj': [
-    { paperNumber: 1, paperType: 'theory', variants: [11, 12, 13] },
-    { paperNumber: 2, paperType: 'theory', variants: [21, 22, 23] },
-    { paperNumber: 3, paperType: 'theory', variants: [31, 32, 33] },
-    { paperNumber: 4, paperType: 'theory', variants: [41, 42, 43] },
-    { paperNumber: 5, paperType: 'practical', variants: [51, 52, 53] },
-    { paperNumber: 6, paperType: 'alternative_to_practical', variants: [61, 62, 63] },
-  ],
-  // ---- IGCSE Chemistry 0620 ----
-  '0620|2025|on': [
-    { paperNumber: 1, paperType: 'theory', variants: [11, 12, 13] },
-    { paperNumber: 2, paperType: 'theory', variants: [21, 22, 23] },
-    { paperNumber: 3, paperType: 'theory', variants: [31, 32, 33] },
-    { paperNumber: 4, paperType: 'theory', variants: [41, 42, 43] },
-    { paperNumber: 5, paperType: 'practical', variants: [52] },
-    { paperNumber: 6, paperType: 'alternative_to_practical', variants: [61, 62, 63] },
-  ],
-  // ---- O Level Physics 5054 (Paper 3 = Practical Test) ----
-  '5054|2025|mj': [
-    { paperNumber: 1, paperType: 'theory', variants: [11, 12] },
-    { paperNumber: 2, paperType: 'theory', variants: [21, 22] },
-    { paperNumber: 3, paperType: 'practical', variants: [31, 32] },
-  ],
-  // ---- O Level Chemistry 5070 (Paper 4 = Alternative to Practical) ----
-  '5070|2025|mj': [
-    { paperNumber: 1, paperType: 'theory', variants: [11, 12] },
-    { paperNumber: 2, paperType: 'theory', variants: [21, 22] },
-    { paperNumber: 3, paperType: 'theory', variants: [31, 32] },
-    { paperNumber: 4, paperType: 'alternative_to_practical', variants: [41, 42] },
-  ],
-  // ---- IGCSE Mathematics 0580 (Papers 1-4, all theory; Core/Extended) ----
-  '0580|2025|mj': [
-    { paperNumber: 1, paperType: 'theory', variants: [11, 12, 13] },
-    { paperNumber: 2, paperType: 'theory', variants: [21, 22, 23] },
-    { paperNumber: 3, paperType: 'theory', variants: [31, 32, 33] },
-    { paperNumber: 4, paperType: 'theory', variants: [41, 42, 43] },
-  ],
-  // ---- IGCSE Physics 0625 - 2024 October/November ----
-  '0625|2024|on': [
-    { paperNumber: 1, paperType: 'theory', variants: [11, 12, 13] },
-    { paperNumber: 2, paperType: 'theory', variants: [21, 22, 23] },
-    { paperNumber: 3, paperType: 'theory', variants: [31, 32, 33] },
-    { paperNumber: 4, paperType: 'theory', variants: [41, 42, 43] },
-    { paperNumber: 5, paperType: 'practical', variants: [51, 52, 53] },
-    { paperNumber: 6, paperType: 'alternative_to_practical', variants: [61, 62, 63] },
-  ],
-  // ---- IGCSE Physics 0625 - 2025 October/November ----
-  '0625|2025|on': [
-    { paperNumber: 1, paperType: 'theory', variants: [11, 12, 13] },
-    { paperNumber: 2, paperType: 'theory', variants: [21, 22, 23] },
-    { paperNumber: 3, paperType: 'theory', variants: [31, 32, 33] },
-    { paperNumber: 4, paperType: 'theory', variants: [41, 42, 43] },
-    { paperNumber: 5, paperType: 'practical', variants: [51, 52, 53] },
-    { paperNumber: 6, paperType: 'alternative_to_practical', variants: [61, 62, 63] },
-  ],
-  // ---- IGCSE Biology 0610 - 2025 May/June ----
-  '0610|2025|mj': [
-    { paperNumber: 1, paperType: 'theory', variants: [11, 12, 13] },
-    { paperNumber: 2, paperType: 'theory', variants: [21, 22, 23] },
-    { paperNumber: 3, paperType: 'theory', variants: [31, 32, 33] },
-    { paperNumber: 4, paperType: 'theory', variants: [41, 42, 43] },
-    { paperNumber: 5, paperType: 'practical', variants: [51, 52, 53] },
-    { paperNumber: 6, paperType: 'alternative_to_practical', variants: [61, 62, 63] },
-  ],
-};
-
-// ---------------------------------------------------------------------------
-// Subjects plus their syllabus-level component catalogue.
-//
-// `paperTypes`: map of paperNumber -> paper_type for the whole syllabus. This
-// is genuine syllabus knowledge for the specific subject (not copied across
-// subjects) and is used only to author the UNVERIFIED component rows that make
-// up a subject's expected structure. VERIFIED sessions override these.
-//
-// `knownVariants`: optional explicit per-session variant knowledge that is
-// subject-specific but not yet web-verified. Kept empty unless actually known.
-// ---------------------------------------------------------------------------
-const SUBJECTS = [
-  {
-    name: 'Mathematics (Syllabus D)', code: '4024', qualification: 'O Level',
-    description: 'Cambridge O Level Mathematics develops logical reasoning and problem-solving skills.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Additional Mathematics', code: '4037', qualification: 'O Level',
-    description: 'Cambridge O Level Additional Mathematics introduces calculus and further algebra.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Physics', code: '5054', qualification: 'O Level',
-    description: 'Cambridge O Level Physics develops understanding of the physical world.',
-    paperTypes: { 1: 'theory', 2: 'theory', 3: 'practical' },
-  },
-  {
-    name: 'Chemistry', code: '5070', qualification: 'O Level',
-    description: 'Cambridge O Level Chemistry helps learners understand the chemical world.',
-    paperTypes: { 1: 'theory', 2: 'theory', 3: 'theory', 4: 'alternative_to_practical' },
-  },
-  {
-    name: 'Biology', code: '5090', qualification: 'O Level',
-    description: 'Cambridge O Level Biology develops ideas about life processes.',
-    paperTypes: { 1: 'theory', 2: 'theory', 3: 'practical' },
-  },
-  {
-    name: 'English Language', code: '1120', qualification: 'O Level',
-    description: 'Cambridge O Level English Language develops reading, writing, and critical thinking.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'English Literature', code: '2010', qualification: 'O Level',
-    description: 'Cambridge O Level English Literature encourages exploration of literary texts.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'French Language', code: '3010', qualification: 'O Level',
-    description: 'Cambridge O Level French develops language skills for communication.',
-    paperTypes: { 1: 'theory', 2: 'theory', 3: 'listening' },
-  },
-  {
-    name: 'Geography', code: '2048', qualification: 'O Level',
-    description: 'Cambridge O Level Geography explores the relationship between people and environment.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'History', code: '2172', qualification: 'O Level',
-    description: 'Cambridge O Level History develops knowledge of historical events.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Computer Studies', code: '7010', qualification: 'O Level',
-    description: 'Cambridge O Level Computer Studies develops understanding of computer principles.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Economics', code: '2281', qualification: 'O Level',
-    description: 'Cambridge O Level Economics provides grounding in economic theory.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Business Studies', code: '7115', qualification: 'O Level',
-    description: 'Cambridge O Level Business Studies introduces learners to business.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Commerce', code: '7100', qualification: 'O Level',
-    description: 'Cambridge O Level Commerce covers trade, industry, and business activities.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Art and Design', code: '6010', qualification: 'O Level',
-    description: 'Cambridge O Level Art and Design develops creative skills.',
-    paperTypes: { 1: 'theory', 2: 'coursework' },
-  },
-  {
-    name: 'Design and Technology', code: '6050', qualification: 'O Level',
-    description: 'Cambridge O Level Design and Technology develops designing and making skills.',
-    paperTypes: { 1: 'theory', 2: 'coursework' },
-  },
-  {
-    name: 'Food and Nutrition', code: '6065', qualification: 'O Level',
-    description: 'Cambridge O Level Food and Nutrition develops understanding of food and health.',
-    paperTypes: { 1: 'theory', 2: 'practical' },
-  },
-  {
-    name: 'Physical Education', code: '6005', qualification: 'O Level',
-    description: 'Cambridge O Level Physical Education promotes healthy lifestyles.',
-    paperTypes: { 1: 'theory', 2: 'coursework' },
-  },
-  {
-    name: 'Agricultural Science', code: '5038', qualification: 'O Level',
-    description: 'Cambridge O Level Agricultural Science covers farming and crop production.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Islamic Religious Studies', code: '2068', qualification: 'O Level',
-    description: 'Cambridge O Level Islamic Religious Studies explores Islamic beliefs and practices.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  // ------------------------------- IGCSE -------------------------------
-  {
-    name: 'Mathematics', code: '0580', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Mathematics builds foundational mathematical skills.',
-    paperTypes: { 1: 'theory', 2: 'theory', 3: 'theory', 4: 'theory' },
-  },
-  {
-    name: 'Additional Mathematics', code: '0606', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Additional Mathematics introduces calculus and further topics.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Physics', code: '0625', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Physics develops understanding of the physical world.',
-    paperTypes: { 1: 'theory', 2: 'theory', 3: 'theory', 4: 'theory', 5: 'practical', 6: 'alternative_to_practical' },
-  },
-  {
-    name: 'Chemistry', code: '0620', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Chemistry helps learners understand the chemical world.',
-    paperTypes: { 1: 'theory', 2: 'theory', 3: 'theory', 4: 'theory', 5: 'practical', 6: 'alternative_to_practical' },
-  },
-  {
-    name: 'Biology', code: '0610', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Biology develops understanding of the living world.',
-    paperTypes: { 1: 'theory', 2: 'theory', 3: 'theory', 4: 'theory', 5: 'practical', 6: 'alternative_to_practical' },
-  },
-  {
-    name: 'English Language', code: '0510', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE English Language develops communication skills.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'English as a Second Language', code: '0511', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE English as a Second Language develops competence in English.',
-    paperTypes: { 1: 'theory', 2: 'theory', 3: 'oral' },
-  },
-  {
-    name: 'First Language English', code: '0990', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE First Language English develops high-level communication skills.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'English Literature', code: '0486', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE English Literature encourages critical reading.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Computer Science', code: '0478', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Computer Science covers computational thinking and programming.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Information and Communication Technology', code: '0417', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE ICT develops understanding of technology in society.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Economics', code: '0455', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Economics provides understanding of economic principles.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Business Studies', code: '0450', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Business Studies introduces business concepts.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Accounting', code: '0452', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Accounting develops skills in financial recording.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'French', code: '0520', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE French develops communication skills in French.',
-    paperTypes: { 1: 'theory', 2: 'theory', 3: 'listening' },
-  },
-  {
-    name: 'Geography', code: '0460', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Geography explores places, people, and the environment.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'History', code: '0470', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE History develops understanding of historical events.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Art and Design', code: '0400', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Art and Design develops creative and visual skills.',
-    paperTypes: { 1: 'theory', 2: 'coursework' },
-  },
-  {
-    name: 'Design and Technology', code: '0445', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Design and Technology develops problem-solving through design.',
-    paperTypes: { 1: 'theory', 2: 'coursework' },
-  },
-  {
-    name: 'Physical Education', code: '0413', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Physical Education promotes active lifestyles.',
-    paperTypes: { 1: 'theory', 2: 'coursework' },
-  },
-  {
-    name: 'Travel and Tourism', code: '0471', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Travel and Tourism covers the travel industry.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Environmental Management', code: '0680', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Environmental Management covers environmental issues.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Sociology', code: '0495', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Sociology explores social structures and issues.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Global Perspectives', code: '0457', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Global Perspectives develops critical thinking about global issues.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Enterprise', code: '0346', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Enterprise develops understanding of business enterprise.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-  {
-    name: 'Islamic Studies', code: '0493', qualification: 'IGCSE',
-    description: 'Cambridge IGCSE Islamic Studies explores Islamic beliefs and practices.',
-    paperTypes: { 1: 'theory', 2: 'theory' },
-  },
-];
+function sessionToCode(session) {
+  return session === "May/June" ? "mj" : "on";
+}
 
 function sessionSeries(year, session) {
-  const s = session === 'mj' ? 's' : 'w';
+  const prefix = session === "May/June" ? "s" : "w";
   const yy = String(year).slice(2);
-  return `${s}${yy}`;
+  return `${prefix}${yy}`;
+}
+
+function inferPaperType(paperName) {
+  const lower = paperName.toLowerCase();
+  if (lower.includes("practical test")) return "practical";
+  if (lower.includes("alternative to practical")) return "alternative_to_practical";
+  if (lower.includes("coursework")) return "coursework";
+  if (lower.includes("oral")) return "oral";
+  if (lower.includes("listening")) return "listening";
+  return "theory";
 }
 
 module.exports = {
-  qualifications,
-  SESSIONS,
+  O_LEVEL_PAPERS,
   YEARS,
-  SUBJECTS,
-  VERIFIED,
+  sessionToCode,
   sessionSeries,
+  inferPaperType,
 };

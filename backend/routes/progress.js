@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', authenticateToken, (req, res) => {
   try {
     const progress = db.prepare(`
-      SELECT up.variant_id, up.completed, up.completed_at
+      SELECT up.variant_id, up.completed, up.ignored, up.completed_at
       FROM user_progress up
       WHERE up.user_id = ?
     `).all(req.user.id);
@@ -30,18 +30,46 @@ router.post('/toggle', authenticateToken, (req, res) => {
     if (existing) {
       if (existing.completed) {
         db.prepare('UPDATE user_progress SET completed = 0, completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(existing.id);
-        res.json({ completed: false });
+        res.json({ completed: false, ignored: false });
       } else {
-        db.prepare('UPDATE user_progress SET completed = 1, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(existing.id);
-        res.json({ completed: true, completedAt: new Date().toISOString() });
+        db.prepare('UPDATE user_progress SET completed = 1, completed_at = CURRENT_TIMESTAMP, ignored = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(existing.id);
+        res.json({ completed: true, completedAt: new Date().toISOString(), ignored: false });
       }
     } else {
       db.prepare('INSERT INTO user_progress (user_id, variant_id, completed, completed_at) VALUES (?, ?, 1, CURRENT_TIMESTAMP)').run(req.user.id, paperId);
-      res.json({ completed: true, completedAt: new Date().toISOString() });
+      res.json({ completed: true, completedAt: new Date().toISOString(), ignored: false });
     }
   } catch (err) {
     console.error('Toggle progress error:', err);
     res.status(500).json({ error: 'Failed to update progress' });
+  }
+});
+
+router.post('/ignore', authenticateToken, (req, res) => {
+  try {
+    const { paperId } = req.body;
+    if (!paperId) return res.status(400).json({ error: 'Paper ID required' });
+
+    const variant = db.prepare('SELECT id FROM variants WHERE id = ?').get(paperId);
+    if (!variant) return res.status(404).json({ error: 'Variant not found' });
+
+    const existing = db.prepare('SELECT * FROM user_progress WHERE user_id = ? AND variant_id = ?').get(req.user.id, paperId);
+
+    if (existing) {
+      if (existing.ignored) {
+        db.prepare('UPDATE user_progress SET ignored = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(existing.id);
+        res.json({ ignored: false, completed: !!existing.completed });
+      } else {
+        db.prepare('UPDATE user_progress SET ignored = 1, completed = 0, completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(existing.id);
+        res.json({ ignored: true, completed: false });
+      }
+    } else {
+      db.prepare('INSERT INTO user_progress (user_id, variant_id, ignored) VALUES (?, ?, 1)').run(req.user.id, paperId);
+      res.json({ ignored: true, completed: false });
+    }
+  } catch (err) {
+    console.error('Toggle ignore error:', err);
+    res.status(500).json({ error: 'Failed to update ignore status' });
   }
 });
 
@@ -52,7 +80,8 @@ router.post('/bulk-toggle', authenticateToken, (req, res) => {
       return res.status(400).json({ error: 'Paper IDs array required' });
     }
 
-    const toggle = db.transaction(() => {
+    db.exec('BEGIN');
+    try {
       for (const variantId of paperIds) {
         const existing = db.prepare('SELECT id FROM user_progress WHERE user_id = ? AND variant_id = ?').get(req.user.id, variantId);
         if (existing) {
@@ -63,8 +92,11 @@ router.post('/bulk-toggle', authenticateToken, (req, res) => {
             .run(req.user.id, variantId, completed ? 1 : 0, completed ? 1 : 0);
         }
       }
-    });
-    toggle();
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
     res.json({ message: 'Progress updated', count: paperIds.length });
   } catch (err) {
     res.status(500).json({ error: 'Failed to bulk update progress' });
@@ -80,7 +112,7 @@ router.get('/subject/:subjectId', authenticateToken, (req, res) => {
     const variants = db.prepare(`
       SELECT v.id, v.variant_number, c.component_code, c.paper_number, es.year, es.session,
         es.series_code, c.paper_type, c.verified,
-        up.completed, up.completed_at
+        up.completed, up.ignored, up.completed_at
       FROM variants v
       JOIN components c ON c.id = v.component_id
       JOIN exam_sessions es ON es.id = c.exam_session_id
@@ -91,6 +123,7 @@ router.get('/subject/:subjectId', authenticateToken, (req, res) => {
 
     const total = variants.length;
     const completedCount = variants.filter((v) => v.completed).length;
+    const ignoredCount = variants.filter((v) => v.ignored).length;
 
     const grouped = {};
     for (const v of variants) {
@@ -104,8 +137,9 @@ router.get('/subject/:subjectId', authenticateToken, (req, res) => {
       papers: variants,
       total,
       completed: completedCount,
-      remaining: total - completedCount,
-      percentage: total > 0 ? Math.round((completedCount / total) * 100) : 0,
+      ignored: ignoredCount,
+      remaining: total - completedCount - ignoredCount,
+      percentage: (total - ignoredCount) > 0 ? Math.round((completedCount / (total - ignoredCount)) * 100) : 0,
       grouped,
     });
   } catch (err) {

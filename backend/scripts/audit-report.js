@@ -8,11 +8,13 @@
 //   TOTAL FABRICATED REMOVED / DUPLICATES REMOVED / CORRECTED / RESOURCES ADDED / BROKEN REMOVED
 //   Subject-by-subject summary
 //   List of every remaining UNVERIFIED item
+//
+// NOTE: This report is DB-derived (the VERIFIED constant no longer exists in
+// data.js). "Verified" here means verified=1 against Cambridge sources.
 
 const path = require('path');
 process.env.DATABASE_PATH = process.env.DATABASE_PATH || path.join(__dirname, '..', 'data', 'cambridge.db');
 const { db } = require('../database');
-const { VERIFIED } = require('../data.js');
 
 function pad(s, n) {
   s = String(s);
@@ -75,25 +77,27 @@ function main() {
   console.log(`TOTAL RESOURCE RECORDS:          ${totalResources}`);
   console.log('');
 
-  // Fabricated/duplicates/corrected metrics (derived during the rebuild).
-  // Legacy DB (pre-rebuild): 3,034 flat paper rows were formulaically
-  // generated. Post-rebuild: 56 verified variant records. The difference is
-  // fabricated/unverifiable rows removed.
-  console.log(`TOTAL FABRICATED RECORDS REMOVED: 3034 - 56 = ${3034 - 56} (all prior formulaic flat rows replaced)`);
-  console.log(`TOTAL DUPLICATES REMOVED:         ${3034 - 56} (formula-generated identical rows no longer present)`);
-  console.log(`TOTAL RECORDS CORRECTED:          8 (5054 P3 Practical, 5070 P4 ATP 4th paper, 0625 P5/P6, 0620 3-variant + P5[52], 4024 MJ/ON variant corrections)`);
+  // Fabricated/duplicates/corrected metrics. Historical cleanup is NOT stored
+  // in the DB; these figures reflect the V013 verified-master rebuild.
+  console.log(`TOTAL FABRICATED RECORDS REMOVED: 3034 - 56 = ${3034 - 56} (historical: all prior formulaic flat rows replaced by the verified-master rebuild)`);
+  console.log(`TOTAL DUPLICATES REMOVED:         ${3034 - 56} (historical: formula-generated identical rows no longer present)`);
+  console.log(`TOTAL RECORDS CORRECTED:          8 (historical: 5054 P3 Practical, 5070 P4 ATP 4th paper, 0625 P5/P6, 0620 3-variant + P5[52], 4024 MJ/ON variant corrections)`);
   console.log(`TOTAL RESOURCES ADDED:            ${totalResources}`);
   console.log(`TOTAL BROKEN RESOURCES REMOVED:   0 (no URLs existed in old model; no URLs added that were unverified)`);
+  console.log('');
+  console.log(`NOTE: catalogue is now authored in data.js; current verified component records are listed at the end.`);
   console.log('');
 
   // Subject-by-subject summary
   console.log('SUBJECT BY SUBJECT SUMMARY');
+  const years = db.prepare('SELECT MIN(year) AS mn, MAX(year) AS mx FROM exam_sessions').get();
+  const yearLabel = `${years.mn || 2015}-${years.mx || 2026}`;
   console.log(pad('Subject', 30) + pad('Code', 8) + pad('Years', 7) + pad('Sess', 6) + pad('Comp', 6) + pad('VerComp', 8) + pad('Variants', 9) + pad('Ver', 5) + pad('Unver', 6));
   console.log('-'.repeat(90));
   for (const s of subjects) {
     const r = bySubj[s.id] || { sessions: 0, verified_sessions: 0, components: 0, verified_components: 0, variants: 0, verified_variants: 0 };
     const unverComponents = r.components - r.verified_components;
-    console.log(pad(s.name, 30) + pad(s.code, 8) + pad('2020-2026', 7) + pad(r.sessions, 6) + pad(r.components, 6) + pad(r.verified_components, 8) + pad(r.variants, 9) + pad(r.verified_variants, 5) + pad(unverComponents, 6));
+    console.log(pad(s.name, 30) + pad(s.code, 8) + pad(yearLabel, 7) + pad(r.sessions, 6) + pad(r.components, 6) + pad(r.verified_components, 8) + pad(r.variants, 9) + pad(r.verified_variants, 5) + pad(unverComponents, 6));
   }
 
   // List every remaining UNVERIFIED item (components with no verified variants)
@@ -131,16 +135,36 @@ function main() {
     }
   }
 
-  // Verified structure detail (the confirmed core)
+  // Verified structure detail (confirmed against sources): DB-derived now that
+  // the catalogue is authored in data.js with per-subject verified structures.
   console.log('\n------------------');
-  console.log('VERIFIED SESSIONS (confirmed against sources)');
+  console.log('VERIFIED SESSIONS (components verified against sources)');
   console.log('------------------');
-  for (const key of Object.keys(VERIFIED).sort()) {
-    const [code, year, session] = key.split('|');
-    const sess = session === 'mj' ? 'May/June' : 'October/November';
-    console.log(`  ${code} ${year} ${sess}:`);
-    for (const p of VERIFIED[key]) {
-      console.log(`     Paper ${p.paperNumber} (${p.paperType}): variants ${p.variants.join(', ')}`);
+  const verifiedRows = db.prepare(`
+    SELECT s.code AS subject_code, es.year, es.session, c.paper_number, c.paper_type,
+           c.paper_label, v.variant_number
+    FROM components c
+    JOIN exam_sessions es ON c.exam_session_id = es.id
+    JOIN subjects s ON es.subject_id = s.id
+    LEFT JOIN variants v ON v.component_id = c.id
+    WHERE c.verified = 1
+    ORDER BY s.code, es.year, es.session, c.paper_number, v.variant_number
+  `).all();
+  const verifiedByKey = {};
+  for (const r of verifiedRows) {
+    const sess = r.session === 'mj' ? 'May/June' : 'October/November';
+    const key = `${r.subject_code} ${r.year} ${sess}`;
+    if (!verifiedByKey[key]) verifiedByKey[key] = {};
+    if (!verifiedByKey[key][r.paper_number]) verifiedByKey[key][r.paper_number] = { paper_type: r.paper_type, paper_label: r.paper_label, variants: new Set() };
+    if (r.variant_number != null) verifiedByKey[key][r.paper_number].variants.add(r.variant_number);
+  }
+  for (const key of Object.keys(verifiedByKey).sort()) {
+    const papers = Object.keys(verifiedByKey[key]).sort((a, b) => a - b);
+    console.log(`  ${key}:`);
+    for (const pn of papers) {
+      const p = verifiedByKey[key][pn];
+      const vs = [...p.variants].sort((a, b) => a - b).join(', ');
+      console.log(`     Paper ${pn} (${p.paper_type}): variants ${vs || 'n/a'}`);
     }
   }
 

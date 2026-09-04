@@ -18,10 +18,12 @@ export default function Subjects() {
   useEffect(() => {
     let result = subjects;
     if (search) {
-      const q = search.toLowerCase();
+      const q = search.trim().toLowerCase();
       result = result.filter(s =>
         s.name.toLowerCase().includes(q) ||
-        s.code.toLowerCase().includes(q)
+        s.code.toLowerCase().includes(q) ||
+        (s.qualification_short_name || '').toLowerCase().includes(q) ||
+        (s.qualification_name || '').toLowerCase().includes(q)
       );
     }
     if (qualification) {
@@ -53,10 +55,10 @@ export default function Subjects() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 anim-fade-rise">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Subjects</h1>
-        <p className="text-slate-500 mt-1">{subjects.length} subjects available</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Subjects</h1>
+        <p className="text-slate-500 mt-1 dark:text-slate-400">{subjects.length} subjects available</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -64,7 +66,7 @@ export default function Subjects() {
         <select
           value={qualification}
           onChange={(e) => setQualification(e.target.value)}
-          className="px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+          className="select px-4 py-2.5 rounded-xl"
         >
           <option value="">All Qualifications</option>
           {qualifications.map(q => (
@@ -74,13 +76,19 @@ export default function Subjects() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map(subject => (
-          <SubjectCard key={subject.id} subject={subject} />
+        {filtered.map((subject, i) => (
+          <div
+            key={subject.id}
+            className="anim-fade-rise"
+            style={{ animationDelay: `${Math.min(i * 40, 400)}ms` }}
+          >
+            <SubjectCard subject={subject} />
+          </div>
         ))}
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-slate-500 dark:text-slate-400">
           No subjects found matching your criteria.
         </div>
       )}

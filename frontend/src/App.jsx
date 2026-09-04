@@ -9,6 +9,7 @@ import SubjectDetail from './pages/SubjectDetail';
 import PastPapers from './pages/PastPapers';
 import PaperDetail from './pages/PaperDetail';
 import Progress from './pages/Progress';
+import Ignored from './pages/Ignored';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
 
@@ -27,7 +28,7 @@ function AdminRoute({ children }) {
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="app-shell min-h-screen">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Routes>
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/papers" element={<ProtectedRoute><PastPapers /></ProtectedRoute>} />
           <Route path="/papers/:id" element={<ProtectedRoute><PaperDetail /></ProtectedRoute>} />
           <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
+          <Route path="/ignored" element={<ProtectedRoute><Ignored /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
           <Route path="*" element={<Navigate to="/" />} />

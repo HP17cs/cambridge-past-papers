@@ -293,7 +293,8 @@ router.post('/import/papers', upload.single('file'), (req, res) => {
     const upsertVariant = db.prepare('INSERT INTO variants (component_id, variant_number, verified) VALUES (?, ?, ?)');
     const upsertResource = db.prepare('INSERT INTO paper_resources (variant_id, resource_type, url, verified, provider) VALUES (?, ?, ?, ?, ?)');
 
-    const importTx = db.transaction(() => {
+    db.exec('BEGIN');
+    try {
       for (let i = 0; i < records.length; i++) {
         const r = records[i];
         try {
@@ -362,8 +363,11 @@ router.post('/import/papers', upload.single('file'), (req, res) => {
           errors.push({ row: i + 1, error: err.message });
         }
       }
-    });
-    importTx();
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
 
     res.json({ imported, errors, total: records.length });
   } catch (err) {

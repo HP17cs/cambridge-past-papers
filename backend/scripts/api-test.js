@@ -1,5 +1,6 @@
 const { spawn } = require('child_process');
 const path = require('path');
+const { O_LEVEL_PAPERS } = require('../data.js');
 
 const PORT = 5599;
 const BASE = `http://localhost:${PORT}/api`;
@@ -49,9 +50,9 @@ async function main() {
     check('auth token obtained', !!token);
     const authHeaders = { Authorization: `Bearer ${token}` };
 
-    // Subjects count
+    // Subjects count (should match the authored catalogue)
     const subjects = await (await fetch(`${BASE}/papers/subjects`)).json();
-    check('subjects count = 46', Array.isArray(subjects) && subjects.length === 46);
+    check(`subjects count = ${O_LEVEL_PAPERS.length}`, Array.isArray(subjects) && subjects.length === O_LEVEL_PAPERS.length);
 
     // Find 4024
     const m4024 = subjects.find((s) => s.code === '4024');
@@ -87,18 +88,29 @@ async function main() {
     const compSearch = await (await fetch(`${BASE}/papers?q=4024/13`, { headers: authHeaders })).json();
     check('component-code search matches', compSearch.total >= 1);
 
-    // Toggle progress on the first verified 4024 MJ P1 variant
+    // Toggle progress on the first verified 4024 MJ P1 variant.
+    // Make this idempotent across repeated runs: force a known "off" start,
+    // then toggle on (expect true), then toggle back off to leave no artifact.
     const p1 = year2025 && year2025['mj'] && year2025['mj']['1'] && year2025['mj']['1'].variants[0];
     if (p1) {
-      const toggled = await (await fetch(`${BASE}/progress/toggle`, {
+      await fetch(`${BASE}/progress/bulk-toggle`, {
+        method: 'POST', headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paperIds: [p1.id], completed: false }),
+      });
+      const toggledOn = await (await fetch(`${BASE}/progress/toggle`, {
         method: 'POST', headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({ paperId: p1.id }),
       })).json();
-      check('progress toggle on', toggled.completed === true);
+      check('progress toggle on', toggledOn.completed === true);
       const prog = await (await fetch(`${BASE}/progress`, { headers: authHeaders })).json();
       check('progress lists variant_id', Array.isArray(prog) && prog.some((r) => r.variant_id === p1.id));
       const detail2 = await (await fetch(`${BASE}/papers/${p1.id}`, { headers: authHeaders })).json();
       check('paper detail has variant', detail2.variant && detail2.variant.id === p1.id);
+      // Leave no test artifact behind.
+      await fetch(`${BASE}/progress/bulk-toggle`, {
+        method: 'POST', headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paperIds: [p1.id], completed: false }),
+      });
     }
 
     // Filters

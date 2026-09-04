@@ -45,6 +45,27 @@ function versionLabel(n) {
   return String(n).padStart(3, '0');
 }
 
+// A version entry's on-disk location. Older snapshot tooling wrote either a
+// single `file` (VACUUM-into db) or a `dir` (recovery artifact folder whose
+// database is the largest *.db inside). Resolve both.
+function resolveEntryPath(e) {
+  if (e.file) return { path: path.join(VERSIONS_DIR, e.file), isDir: false };
+  if (e.dir) return { path: path.join(VERSIONS_DIR, e.dir), isDir: true };
+  return null;
+}
+
+function findDbInDir(dir) {
+  const entries = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.db'));
+  if (entries.length === 0) return null;
+  // Prefer an explicit cambridge.db / PRE-REBUILD db; fall back to the largest.
+  const prefer = entries.find((f) => /cambridge\.db$/i.test(f)) || entries.find((f) => /pre-rebuild/i.test(f));
+  if (prefer) return path.join(dir, prefer);
+  const sized = entries
+    .map((f) => ({ f, s: fs.statSync(path.join(dir, f)).size }))
+    .sort((a, b) => b.s - a.s);
+  return path.join(dir, sized[0].f);
+}
+
 function snapshot(label) {
   const m = loadManifest();
   const v = m.next;
@@ -76,9 +97,17 @@ function list() {
   console.log('VERSIONS:');
   if (m.versions.length === 0) { console.log('  (none)'); return; }
   for (const e of m.versions) {
-    const full = path.join(VERSIONS_DIR, e.file);
-    const exists = fs.existsSync(full);
-    console.log(`  V${versionLabel(e.version)}  ${e.created_at}  ${e.label}  ${exists ? fs.statSync(full).size + ' B' : 'MISSING FILE'}`);
+    const r = resolveEntryPath(e);
+    if (!r) { console.log(`  V${versionLabel(e.version)}  ${e.created_at}  ${e.label}  UNRESOLVED PATH`); continue; }
+    const kind = r.isDir ? 'dir ' : 'file';
+    const exists = fs.existsSync(r.path);
+    let sizeTxt = 'MISSING';
+    if (exists) {
+      sizeTxt = r.isDir
+        ? `${fs.readdirSync(r.path).length} files`
+        : fs.statSync(r.path).size + ' B';
+    }
+    console.log(`  V${versionLabel(e.version)}  ${e.created_at}  ${e.label}  [${kind}] ${exists ? sizeTxt : 'MISSING'}`);
   }
   console.log(`Next version: V${versionLabel(m.next)}`);
 }
@@ -87,14 +116,19 @@ function rollback(versionNum) {
   const m = loadManifest();
   const e = m.versions.find((x) => x.version === Number(versionNum));
   if (!e) { console.error(`No version V${versionLabel(versionNum)} found.`); process.exit(1); }
-  const full = path.join(VERSIONS_DIR, e.file);
-  if (!fs.existsSync(full)) { console.error(`Snapshot file missing: ${full}`); process.exit(1); }
+  const r = resolveEntryPath(e);
+  if (!r || !fs.existsSync(r.path)) { console.error(`Snapshot missing for version V${versionLabel(versionNum)}.`); process.exit(1); }
+
+  // Locate the actual database file: directly for `file` snapshots, otherwise
+  // the database inside a `dir` artifact snapshot.
+  const srcDb = r.isDir ? findDbInDir(r.path) : r.path;
+  if (!srcDb) { console.error(`No .db found inside snapshot dir: ${r.path}`); process.exit(1); }
 
   // Back up the current DB before overwriting (so rollback is itself recoverable).
   const currentLabel = 'PRE-ROLLBACK';
   snapshot('pre-rollback-to-' + e.label);
 
-  fs.copyFileSync(full, DB_PATH);
+  fs.copyFileSync(srcDb, DB_PATH);
   console.log(`Rolled back database to V${versionLabel(versionNum)} (${e.label}).`);
   console.log('The previous state was snapshotted as PRE-ROLLBACK (recoverable).');
 }

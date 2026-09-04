@@ -1,14 +1,18 @@
+#!/usr/bin/env node
 require('dotenv').config();
 const crypto = require('crypto');
-const { db, initDatabase, migrate, rebuildLegacy, snapshotLegacyProgress } = require('./database');
+const { db, initDatabase, snapshotNormalizedProgress } = require('./database');
 const {
-  qualifications,
-  SESSIONS,
+  O_LEVEL_PAPERS,
   YEARS,
-  SUBJECTS,
-  VERIFIED,
+  sessionToCode,
   sessionSeries,
+  inferPaperType,
 } = require('./data');
+
+// `npm run reset` (seed.js --reset) wipes user progress and starts fresh.
+// Default seed preserves user progress across re-seeds (PART 15).
+const RESET = process.argv.includes('--reset');
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -16,145 +20,184 @@ function hashPassword(password) {
   return salt + ':' + hash;
 }
 
-// ---------------------------------------------------------------------------
-// Progress migration
-// ---------------------------------------------------------------------------
+function count(table) {
+  return db.prepare(`SELECT COUNT(*) AS c FROM ${table}`).get().c;
+}
 
-// Build a map: semantic key -> verified variant id in the newly populated DB.
-// Runs AFTER the normalized tables are filled.
-function buildVariantKeyIndex() {
-  const map = {};
-  const rows = db.prepare(`
-    SELECT v.id AS variant_id, s.code AS subject_code, es.year, es.session,
-           c.paper_number, c.paper_type, v.variant_number
-    FROM variants v
+// PART 15: re-attach a snapshot of normalized user progress to the current
+// variant ids by semantic identity (subject_code|year|session|paper_number|
+// variant_number). Rows whose variant no longer exists are skipped.
+function restoreProgress(snapshot) {
+  if (!snapshot || snapshot.length === 0) return 0;
+  const findVariant = db.prepare(`
+    SELECT v.id FROM variants v
     JOIN components c ON c.id = v.component_id
     JOIN exam_sessions es ON es.id = c.exam_session_id
     JOIN subjects s ON s.id = es.subject_id
-  `).all();
-  for (const r of rows) {
-    const sessionKey = r.session === 'mj' ? 'May/June' : 'October/November';
-    const key = `${r.subject_code}|${r.year}|${sessionKey}|${r.paper_number}|${r.variant_number}`;
-    map[key] = r.variant_id;
-  }
-  return map;
-}
-
-function restoreProgress(legacyRows, variantIdByKey) {
-  const insert = db.prepare('INSERT INTO user_progress (user_id, variant_id, completed, completed_at, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
-  const kept = [];
-  const dropped = [];
-  for (const row of legacyRows) {
-    const sessionKey = row.session === 'mj' ? 'May/June' : 'October/November';
-    const key = `${row.subject_code}|${row.year}|${sessionKey}|${row.paper_number}|${row.variant}`;
-    const variantId = variantIdByKey[key];
-    if (variantId == null) {
-      dropped.push({ user_id: row.user_id, key, reason: 'no verified matching variant' });
+    WHERE s.code = ? AND es.year = ? AND es.session = ? AND c.paper_number = ? AND v.variant_number = ?
+  `);
+  const exists = db.prepare('SELECT id FROM user_progress WHERE user_id = ? AND variant_id = ?');
+  const insert = db.prepare(
+    'INSERT INTO user_progress (user_id, variant_id, completed, ignored, completed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
+  );
+  let restored = 0;
+  let skipped = 0;
+  for (const p of snapshot) {
+    const v = findVariant.get(p.subject_code, p.year, p.session, p.paper_number, p.variant_number);
+    if (!v) {
+      skipped++;
       continue;
     }
-    insert.run(row.user_id, variantId, row.completed, row.completed_at || null);
-    kept.push({ user_id: row.user_id, variant_id: variantId });
+    if (exists.get(p.user_id, v.id)) continue;
+    insert.run(p.user_id, v.id, p.completed || 0, p.ignored || 0, p.completed_at);
+    restored++;
   }
-  return { kept, dropped };
+  if (restored || skipped) {
+    console.log(`\nProgress restored: ${restored} row(s) preserved${skipped ? `, ${skipped} row(s) skipped (variant no longer in catalogue)` : ''}.`);
+  }
+  return restored;
 }
 
-// ---------------------------------------------------------------------------
-// Seed helpers
-// ---------------------------------------------------------------------------
+function seed() {
+  console.log('=== Cambridge O-Level Seed ===\n');
 
-function upsertQualificationsAndSubjects() {
-  const qualMap = {};
-  for (const q of qualifications) {
-    const existing = db.prepare('SELECT id FROM qualifications WHERE name = ?').get(q.name);
-    if (existing) {
-      qualMap[q.short_name] = existing.id;
-      db.prepare('UPDATE qualifications SET short_name = ? WHERE id = ?').run(q.short_name, existing.id);
-    } else {
-      const r = db.prepare('INSERT INTO qualifications (name, short_name) VALUES (?, ?)').run(q.name, q.short_name);
-      qualMap[q.short_name] = r.lastInsertRowid;
-    }
-  }
+  // Snapshot current progress BEFORE initDatabase/clearing so a re-seed never
+  // destroys user progress (PART 15). Reset mode wipes progress on purpose.
+  const progressSnapshot = RESET ? null : snapshotNormalizedProgress();
 
-  const insertSubject = db.prepare('INSERT INTO subjects (name, code, qualification_id, description) VALUES (?, ?, ?, ?)');
-  for (const s of SUBJECTS) {
-    const qualId = qualMap[s.qualification];
-    const existing = db.prepare('SELECT id FROM subjects WHERE code = ? AND qualification_id = ?').get(s.code, qualId);
-    if (existing) {
-      db.prepare('UPDATE subjects SET name = ?, description = ? WHERE id = ?').run(s.name, s.description, existing.id);
-    } else {
-      insertSubject.run(s.name, s.code, qualId, s.description);
-    }
-  }
-}
+  initDatabase();
 
-// Returns { totalComponents, verifiedComponents, unverifiedComponents, totalVariants, verifiedVariants }
-function populateSessions() {
-  // Remove any previously seeded structural rows so the dataset is authored
-  // fresh and never accumulates stale/duplicate rows.
+  // Clear old paper data (preserve users; progress is re-attached after seed)
+  console.log(RESET
+    ? 'RESET mode: clearing paper data AND user progress...'
+    : 'Clearing old paper data (user progress will be preserved)...');
+  db.prepare('DELETE FROM user_progress').run();
+  db.prepare('DELETE FROM paper_resources').run();
+  db.prepare('DELETE FROM variants').run();
+  db.prepare('DELETE FROM components').run();
   db.prepare('DELETE FROM exam_sessions').run();
+  db.prepare('DELETE FROM sqlite_sequence WHERE name IN (?, ?, ?, ?, ?)').run(
+    'user_progress', 'paper_resources', 'variants', 'components', 'exam_sessions'
+  );
 
-  const stmtSubject = db.prepare('SELECT id FROM subjects WHERE code = ?');
-  const insertSession = db.prepare(`
-    INSERT INTO exam_sessions (subject_id, year, session, series_code, verified, notes)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-  const insertComponent = db.prepare(`
-    INSERT INTO components (exam_session_id, component_code, paper_number, paper_type, verified)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-  const insertVariant = db.prepare(`
-    INSERT INTO variants (component_id, variant_number, verified)
-    VALUES (?, ?, ?)
-  `);
+  // Upsert qualifications from the dataset
+  const qualMap = {};
+  for (const paper of O_LEVEL_PAPERS) {
+    const qualName = paper.qualification || 'O Level';
+    const shortName = qualName === 'O Level' ? 'O Level' : qualName;
+    const fullName = qualName === 'O Level' ? 'Cambridge O Level' : `Cambridge ${qualName}`;
+    if (!qualMap[qualName]) {
+      const existing = db.prepare('SELECT id FROM qualifications WHERE short_name = ?').get(shortName);
+      if (existing) {
+        qualMap[qualName] = existing.id;
+      } else {
+        const r = db.prepare('INSERT INTO qualifications (name, short_name) VALUES (?, ?)').run(fullName, shortName);
+        qualMap[qualName] = r.lastInsertRowid;
+      }
+    }
+  }
 
-  let totalComponents = 0;
-  let verifiedComponents = 0;
-  let unverifiedComponents = 0;
-  let totalVariants = 0;
-  let verifiedVariants = 0;
+  // Purge non-current qualifications and their subjects
+  const validQualIds = Object.values(qualMap);
+  const qPlaceholders = validQualIds.map(() => '?').join(',');
+  db.prepare(`DELETE FROM qualifications WHERE id NOT IN (${qPlaceholders})`).run(...validQualIds);
+  db.prepare(`DELETE FROM subjects WHERE qualification_id NOT IN (${qPlaceholders})`).run(...validQualIds);
+
+  // Remove subjects not in current dataset
+  const validCodes = O_LEVEL_PAPERS.map(p => p.code);
+  const placeholders = validCodes.map(() => '?').join(',');
+  db.prepare(
+    `DELETE FROM subjects WHERE code NOT IN (${placeholders})`
+  ).run(...validCodes);
+
+  // Upsert subjects
+  const insertSubject = db.prepare(
+    'INSERT OR IGNORE INTO subjects (name, code, qualification_id) VALUES (?, ?, ?)'
+  );
+  const updateSubject = db.prepare(
+    'UPDATE subjects SET name = ?, qualification_id = ? WHERE code = ?'
+  );
+  for (const paper of O_LEVEL_PAPERS) {
+    const qualName = paper.qualification || 'O Level';
+    const qualId = qualMap[qualName];
+    const existing = db.prepare(
+      'SELECT id FROM subjects WHERE code = ?'
+    ).get(paper.code);
+    if (existing) {
+      updateSubject.run(paper.name, qualId, paper.code);
+    } else {
+      insertSubject.run(paper.name, paper.code, qualId);
+    }
+  }
+
+  // Build subject code -> id map
+  const subjectMap = {};
+  const allSubjects = db.prepare('SELECT id, code FROM subjects').all();
+  for (const s of allSubjects) {
+    subjectMap[s.code] = s.id;
+  }
+
+  // Populate exam_sessions, components, variants
+  // BUG FIX: `INSERT OR IGNORE` + `lastInsertRowid` is unreliable on re-seed
+  // (ignored rows do not advance the rowid). Always look the id back up by the
+  // row's UNIQUE key instead.
+  const insertSession = db.prepare(
+    'INSERT OR IGNORE INTO exam_sessions (subject_id, year, session, series_code, verified, notes) VALUES (?, ?, ?, ?, 0, ?)'
+  );
+  const findSession = db.prepare('SELECT id FROM exam_sessions WHERE subject_id = ? AND year = ? AND session = ?');
+  const insertComponent = db.prepare(
+    'INSERT OR IGNORE INTO components (exam_session_id, component_code, paper_number, paper_type, paper_label, verified) VALUES (?, ?, ?, ?, ?, 0)'
+  );
+  const findComponent = db.prepare('SELECT id FROM components WHERE exam_session_id = ? AND paper_number = ?');
+  const insertVariant = db.prepare(
+    'INSERT OR IGNORE INTO variants (component_id, variant_number, verified) VALUES (?, ?, 0)'
+  );
+  const findVariant = db.prepare('SELECT id FROM variants WHERE component_id = ? AND variant_number = ?');
+
+  let sessionCount = 0;
+  let componentCount = 0;
+  let variantCount = 0;
 
   db.exec('BEGIN');
   try {
-    for (const subject of SUBJECTS) {
-      const subjectRow = stmtSubject.get(subject.code);
-      const subjectId = subjectRow.id;
-      for (const year of YEARS) {
-        for (const session of SESSIONS) {
-          const vkey = `${subject.code}|${year}|${session}`;
-          const verifiedPapers = VERIFIED[vkey];
-          const sessionVerified = Boolean(verifiedPapers);
+    for (const paper of O_LEVEL_PAPERS) {
+      const subjectId = subjectMap[paper.code];
+      if (!subjectId) {
+        console.warn(`  WARNING: Subject ${paper.code} not found, skipping`);
+        continue;
+      }
 
-          // It is legitimate for a subject to simply have no data for a
-          // given year (e.g. not offered, or not verified). We author a
-          // structural row only when we have syllabus-level component
-          // knowledge OR a verified structure. For the current dataset we
-          // author the syllabus component structure for every year/session,
-          // clearly flagged UNVERIFIED unless confirmed.
-          const series = sessionSeries(year, session);
-          const sessionInsert = insertSession.run(subjectId, year, session, series, sessionVerified ? 1 : 0, sessionVerified ? 'verified structure' : 'syllabus-level structure, variants not verified');
+      // Iterate over each session defined for this subject
+      for (const [sessionLabel, sessionData] of Object.entries(paper.sessions)) {
+        const sessionCode = sessionToCode(sessionLabel);
 
-          const paperTypes = subject.paperTypes || {};
-          const paperNumbers = verifiedPapers
-            ? verifiedPapers.map((p) => p.paperNumber)
-            : Object.keys(paperTypes).map(Number).sort((a, b) => a - b);
+        for (const year of YEARS) {
+          const series = sessionSeries(year, sessionCode);
+          const sessNote = `${paper.code} ${year} ${sessionLabel}`;
 
-          for (const pn of paperNumbers) {
-            const paper = verifiedPapers && verifiedPapers.find((p) => p.paperNumber === pn);
-            const paperType = paper ? paper.paperType : (paperTypes[pn] || 'theory');
-            const verifiedFlag = paper ? 1 : 0;
-            const componentCode = `${subject.code}/${pn}`;
-            const compResult = insertComponent.run(sessionInsert.lastInsertRowid, componentCode, pn, paperType, verifiedFlag);
-            totalComponents++;
-            if (verifiedFlag) verifiedComponents++; else unverifiedComponents++;
+          insertSession.run(
+            subjectId, year, sessionCode, series, sessNote
+          );
+          const sessionId = findSession.get(subjectId, year, sessionCode).id;
+          sessionCount++;
 
-            // Only author variants for verified structures. We never invent
-            // variant digits for unverified sessions.
-            if (paper && Array.isArray(paper.variants)) {
-              for (const vn of paper.variants) {
-                insertVariant.run(compResult.lastInsertRowid, vn, 1);
-                totalVariants++;
-                verifiedVariants++;
-              }
+          // Use the session-specific paper list
+          for (const p of sessionData.papers) {
+            const componentCode = `${paper.code}/${p.number}`;
+            const paperType = inferPaperType(p.name);
+
+            insertComponent.run(
+              sessionId, componentCode, p.number, paperType, p.name
+            );
+            const componentId = findComponent.get(sessionId, p.number).id;
+            componentCount++;
+
+            // Use the session-specific variant list
+            for (const componentStr of p.components) {
+              const variantNumber = parseInt(componentStr, 10);
+              insertVariant.run(componentId, variantNumber);
+              findVariant.get(componentId, variantNumber);
+              variantCount++;
             }
           }
         }
@@ -163,50 +206,66 @@ function populateSessions() {
     db.exec('COMMIT');
   } catch (err) {
     db.exec('ROLLBACK');
-    throw err;
+    console.error('SEED FAILED:', err);
+    process.exit(1);
   }
 
-  return { totalComponents, verifiedComponents, unverifiedComponents, totalVariants, verifiedVariants };
-}
-
-function seed() {
-  // Snapshot legacy progress BEFORE initDatabase drops the legacy flat tables.
-  // snapshotLegacyProgress() reads legacy `papers` + `user_progress(paper_id)`;
-  // on a fresh DB those tables do not exist yet and it safely returns [].
-  const legacySnapshot = snapshotLegacyProgress();
-  console.log(`Legacy progress snapshot: ${legacySnapshot.length} rows.`);
-
-  initDatabase();
-  migrate();
-  rebuildLegacy();
-
-  // Populate the normalized structure.
-  const counts = populateSessions();
-
-  // Re-attach progress by logical identity.
-  const variantIdByKey = buildVariantKeyIndex();
-  const restore = restoreProgress(legacySnapshot, variantIdByKey);
-  console.log(`Progress restored: ${restore.kept.length} kept, ${restore.dropped.length} dropped (no verified matching variant).`);
-  if (restore.dropped.length > 0) {
-    const fs = require('fs');
-    const path = require('path');
-    const file = path.join(__dirname, 'data', 'unmatched-progress-backup.json');
-    fs.writeFileSync(file, JSON.stringify(restore.dropped, null, 2), 'utf-8');
-    console.log(`Written ${restore.dropped.length} recoverable progress rows to ${file} for manual review.`);
-    console.log('Recoverable unmatched progress (kept for review):');
-    for (const d of restore.dropped) console.log(`  user ${d.user_id} -> ${d.key} (${d.reason})`);
-  }
-
-  const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@cambridgepapers.com');
+  // Ensure admin user
+  const existingAdmin = db.prepare(
+    "SELECT id FROM users WHERE email = 'admin@cambridgepapers.com'"
+  ).get();
   if (!existingAdmin) {
     const hash = hashPassword('admin123');
-    db.prepare('INSERT INTO users (name, email, password_hash, is_admin) VALUES (?, ?, ?, 1)').run('Administrator', 'admin@cambridgepapers.com', hash);
+    db.prepare(
+      "INSERT INTO users (name, email, password_hash, is_admin) VALUES (?, ?, ?, 1)"
+    ).run('Administrator', 'admin@cambridgepapers.com', hash);
     console.log('Created admin user: admin@cambridgepapers.com / admin123');
   }
 
-  console.log(`Seeded ${SUBJECTS.length} subjects.`);
-  console.log(`Components: ${counts.totalComponents} (${counts.verifiedComponents} verified, ${counts.unverifiedComponents} unverified).`);
-  console.log(`Variants: ${counts.totalVariants} (${counts.verifiedVariants} verified).`);
+  // Summary
+  console.log('\n=== Seed Complete ===');
+  console.log(`Subjects:     ${O_LEVEL_PAPERS.length}`);
+  console.log(`Sessions:     ${sessionCount}`);
+  console.log(`Components:   ${componentCount}`);
+  console.log(`Variants:     ${variantCount}`);
+  console.log(`Users:        ${count('users')}`);
+
+  // PART 15: re-attach preserved user progress to the re-seeded variants.
+  restoreProgress(progressSnapshot);
+  console.log(`Progress:     ${count('user_progress')}`);
+
+  // Per-subject breakdown
+  console.log('\n=== Per-Subject Breakdown ===');
+  for (const paper of O_LEVEL_PAPERS) {
+    const subjectId = subjectMap[paper.code];
+    const sesCount = db.prepare(
+      'SELECT COUNT(*) AS c FROM exam_sessions WHERE subject_id = ?'
+    ).get(subjectId).c;
+    const compCount = db.prepare(`
+      SELECT COUNT(*) AS c FROM components comp
+      JOIN exam_sessions es ON es.id = comp.exam_session_id
+      WHERE es.subject_id = ?
+    `).get(subjectId).c;
+    const varCount = db.prepare(`
+      SELECT COUNT(*) AS c FROM variants v
+      JOIN components comp ON comp.id = v.component_id
+      JOIN exam_sessions es ON es.id = comp.exam_session_id
+      WHERE es.subject_id = ?
+    `).get(subjectId).c;
+
+    // Show session-specific details
+    const sessionDetails = [];
+    for (const [sessionLabel, sessionData] of Object.entries(paper.sessions)) {
+      const pCount = sessionData.papers.length;
+      const vCount = sessionData.papers.reduce((sum, p) => sum + p.components.length, 0);
+      sessionDetails.push(`${sessionLabel}: ${pCount} papers, ${vCount} variants`);
+    }
+
+    console.log(`  ${paper.code} ${paper.name}: ${sesCount} sessions, ${compCount} components, ${varCount} variants`);
+    for (const detail of sessionDetails) {
+      console.log(`    ${detail}`);
+    }
+  }
 }
 
 seed();

@@ -78,12 +78,19 @@ function initDatabase() {
     -- A Component/Paper within a session. component_code is the leading
     -- component identifier, e.g. '4024/1' (paper 1 common core). The full
     -- paper is identified by component_code + variant_number.
+    --
+    -- IMPORTANT (PART 5/6): component_code (e.g. '4024/3') is the machine key.
+    -- paper_label (e.g. 'Paper 3 (Practical Test)') is the verified
+    -- human-readable Cambridge description and is NEVER derived from the
+    -- component code's digits - it is authored per subject. paper_type is the
+    -- controlled vocabulary classification (theory/practical/...).
     CREATE TABLE IF NOT EXISTS components (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       exam_session_id INTEGER NOT NULL,
       component_code TEXT NOT NULL,
       paper_number INTEGER NOT NULL,
       paper_type TEXT NOT NULL DEFAULT 'theory',
+      paper_label TEXT,
       title TEXT,
       verified INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -132,6 +139,7 @@ function initDatabase() {
       user_id INTEGER NOT NULL,
       variant_id INTEGER NOT NULL,
       completed INTEGER DEFAULT 0,
+      ignored INTEGER DEFAULT 0,
       completed_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -178,6 +186,19 @@ function migrate() {
   // legacy progress table here only after the seed has snapshotted; since the
   // seed reads from legacy `papers` and `user_progress`, we must NOT drop them
   // inside migrate(). Instead, the seed performs the drop via rebuildLegacy.
+
+  // Migration: ensure components has the paper_label column (PART 5/6).
+  const compTableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='components'").get();
+  const compHasLabel = compTableExists ? db.prepare('PRAGMA table_info(components)').all().some((c) => c.name === 'paper_label') : false;
+  if (compTableExists && !compHasLabel) {
+    db.exec('ALTER TABLE components ADD COLUMN paper_label TEXT');
+  }
+
+  const progressHasIgnored = hasProgressOldFk ? db.prepare('PRAGMA table_info(user_progress)').all().some((c) => c.name === 'ignored') : false;
+  if (hasProgressOldFk && !progressHasIgnored) {
+    db.exec('ALTER TABLE user_progress ADD COLUMN ignored INTEGER DEFAULT 0');
+  }
+
   void hasPapers;
   void cols;
 }
@@ -201,15 +222,17 @@ function rebuildLegacy() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         variant_id INTEGER NOT NULL,
-        completed INTEGER DEFAULT 0,
-        completed_at DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (variant_id) REFERENCES variants(id) ON DELETE CASCADE,
-        UNIQUE(user_id, variant_id)
-      );
-      CREATE INDEX IF NOT EXISTS idx_progress_user ON user_progress(user_id);
+      completed INTEGER DEFAULT 0,
+      ignored INTEGER DEFAULT 0,
+      completed_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (variant_id) REFERENCES variants(id) ON DELETE CASCADE,
+      UNIQUE(user_id, variant_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_progress_user ON user_progress(user_id);
       CREATE INDEX IF NOT EXISTS idx_progress_variant ON user_progress(variant_id);
       CREATE INDEX IF NOT EXISTS idx_progress_user_variant ON user_progress(user_id, variant_id);
     `);
@@ -233,4 +256,26 @@ function snapshotLegacyProgress() {
   }
 }
 
-module.exports = { db, initDatabase, migrate, rebuildLegacy, snapshotLegacyProgress };
+// PART 15: Snapshot CURRENT normalized user progress keyed by semantic
+// identity (subject_code|year|session|paper_number|variant_number) so it can
+// be re-attached to whatever variant ids exist after a structural re-seed.
+// By default incomplete (completed=0) rows are also preserved so an in-progress
+// record is never silently dropped.
+function snapshotNormalizedProgress() {
+  try {
+    return db.prepare(`
+      SELECT up.user_id, up.completed, up.ignored, up.completed_at,
+             s.code AS subject_code, es.year, es.session,
+             c.paper_number, v.variant_number
+      FROM user_progress up
+      JOIN variants v ON v.id = up.variant_id
+      JOIN components c ON c.id = v.component_id
+      JOIN exam_sessions es ON es.id = c.exam_session_id
+      JOIN subjects s ON s.id = es.subject_id
+    `).all();
+  } catch (e) {
+    return [];
+  }
+}
+
+module.exports = { db, initDatabase, migrate, rebuildLegacy, snapshotLegacyProgress, snapshotNormalizedProgress };

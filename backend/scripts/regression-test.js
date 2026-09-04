@@ -35,8 +35,8 @@ async function j(method, url, body, token) {
   }
 
   const papers = detail.data.papers;
-  const p2 = papers.find(p => p.paper_number === 2 && p.variant === 21);
-  const p2v22 = papers.find(p => p.paper_number === 2 && p.variant === 22);
+  const p2 = papers.find(p => p.paper_number === 2 && p.variant_number === 21);
+  const p2v22 = papers.find(p => p.paper_number === 2 && p.variant_number === 22);
 
   // Test A: toggle variant 21 of Paper 2
   const t1 = await j('POST', '/progress/toggle', { paperId: p2.id }, token);
@@ -77,7 +77,7 @@ async function j(method, url, body, token) {
   await j('POST', '/progress/toggle', { paperId: p2v22.id }, token);
   const prog = await j('GET', '/progress', null, token);
   const paper2Ids = papers.filter(p => p.paper_number === 2).map(p => p.id);
-  const doneInPaper2 = paper2Ids.filter(id => prog.data.find(p => p.paper_id === id && p.completed)).length;
+  const doneInPaper2 = paper2Ids.filter(id => prog.data.find(p => p.variant_id === id && p.completed)).length;
   doneInPaper2 === 2 ? pass.push('Test F: Paper 2 shows 2/' + paper2Ids.length + ' completed') : fail.push('Test F: done=' + doneInPaper2);
 
   // cleanup
@@ -98,9 +98,9 @@ async function j(method, url, body, token) {
   ((ft.data.papers || []).length > 0 && ft.data.papers.every(p => p.paper_type === 'alternative_to_practical'))
     ? pass.push('Paper type filter') : fail.push('Paper type filter');
 
-  // Component code search: 4024/13 (April 2025 MJ verified variant)
+  // Component code search: 4024/13 (Paper 1, Variant 13)
   const comp = await j('GET', '/papers?q=' + encodeURIComponent('4024/13') + '&limit=5', null, token);
-  const compHit = (comp.data.papers || []).find(p => p.component_code === '4024/13');
+  const compHit = (comp.data.papers || []).find(p => p.subject_code === '4024' && p.component_code === '4024/1' && p.variant === 13);
   compHit ? pass.push('Component code search (4024/13)') : fail.push('Component code search');
 
   // New fields surfaced on list query

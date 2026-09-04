@@ -90,7 +90,6 @@ export default function Admin() {
     try {
       const { data } = await api.post('/admin/import/papers', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       setMessage(`Imported ${data.imported} of ${data.total} records. ${data.errors.length} errors.`);
-      if (data.errors.length > 0) console.log('Import errors:', data.errors);
     } catch (err) {
       setError('Import failed');
     }
@@ -113,7 +112,7 @@ export default function Admin() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 anim-fade-rise">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Admin Panel</h1>
         <p className="text-slate-500 mt-1">Manage the past paper database</p>

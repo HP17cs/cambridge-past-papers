@@ -8,15 +8,348 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+/* ==========================================================================
+   THEME SYSTEM
+   Colors are split into two independent dimensions:
+     * data-theme  -> accent color (primary/accent hues)
+     * data-mode   -> light or dark (surfaces, background, glow)
+   Both are set on the <html> root. Tailwind's primary/accent/surface tokens
+   read from these variables, so switching either re-skins the whole app.
+   ========================================================================== */
+
+/* ---- Accent palettes (mode-independent) ---------------------------- */
+
+[data-theme='violet'] {
+  /* Primary: violet #6366f1 -> #a855f7 */
+  --primary-50: 238 242 255;
+  --primary-100: 224 231 255;
+  --primary-200: 199 210 254;
+  --primary-300: 165 180 252;
+  --primary-400: 129 140 248;
+  --primary-500: 99 102 241;
+  --primary-600: 79 70 229;
+  --primary-700: 67 56 202;
+  --primary-800: 55 48 163;
+  --primary-900: 49 46 129;
+  --primary-950: 30 27 75;
+
+  /* Accent: purple/fuchsia */
+  --accent-50: 250 245 255;
+  --accent-100: 243 232 255;
+  --accent-200: 233 213 255;
+  --accent-300: 216 180 254;
+  --accent-400: 192 132 252;
+  --accent-500: 168 85 247;
+  --accent-600: 147 51 234;
+  --accent-700: 126 34 206;
+  --accent-800: 107 33 168;
+  --accent-900: 88 28 135;
+
+  --brand-from: #6366f1;
+  --brand-mid: #7c3aed;
+  --brand-to: #a855f7;
+  --glow-color-dark: rgba(99, 102, 241, 0.28);
+  --glow-color-light: rgba(99, 102, 241, 0.10);
+  --shadow-color: rgba(124, 58, 237, 0.2);
+  --glow-color-dark-secondary: rgba(168, 85, 247, 0.20);
+}
+
+[data-theme='emerald'] {
+  /* Primary: emerald #10b981 -> #06b6d4 */
+  --primary-50: 236 253 245;
+  --primary-100: 209 250 229;
+  --primary-200: 167 243 208;
+  --primary-300: 110 231 183;
+  --primary-400: 52 211 153;
+  --primary-500: 16 185 129;
+  --primary-600: 5 150 105;
+  --primary-700: 4 120 87;
+  --primary-800: 6 95 70;
+  --primary-900: 6 78 59;
+  --primary-950: 2 44 34;
+
+  /* Accent: cyan */
+  --accent-50: 236 254 255;
+  --accent-100: 207 250 254;
+  --accent-200: 165 243 252;
+  --accent-300: 103 232 249;
+  --accent-400: 34 211 238;
+  --accent-500: 6 182 212;
+  --accent-600: 8 145 178;
+  --accent-700: 14 116 144;
+  --accent-800: 21 94 117;
+  --accent-900: 22 78 99;
+
+  --brand-from: #10b981;
+  --brand-mid: #0d9488;
+  --brand-to: #06b6d4;
+  --glow-color-dark: rgba(16, 185, 129, 0.28);
+  --glow-color-light: rgba(16, 185, 129, 0.10);
+  --shadow-color: rgba(6, 182, 212, 0.2);
+  --glow-color-dark-secondary: rgba(16, 185, 129, 0.20);
+}
+
+[data-theme='sunset'] {
+  /* Primary: rose/red #f43f5e -> #fb923c */
+  --primary-50: 255 241 242;
+  --primary-100: 255 228 230;
+  --primary-200: 254 205 211;
+  --primary-300: 253 164 175;
+  --primary-400: 251 113 133;
+  --primary-500: 244 63 94;
+  --primary-600: 225 29 72;
+  --primary-700: 190 18 60;
+  --primary-800: 159 18 57;
+  --primary-900: 136 19 55;
+  --primary-950: 76 5 25;
+
+  /* Accent: orange */
+  --accent-50: 255 247 237;
+  --accent-100: 255 237 213;
+  --accent-200: 254 215 170;
+  --accent-300: 253 186 116;
+  --accent-400: 251 146 60;
+  --accent-500: 251 146 60;
+  --accent-600: 234 88 12;
+  --accent-700: 194 65 12;
+  --accent-800: 154 52 18;
+  --accent-900: 124 45 18;
+
+  --brand-from: #f43f5e;
+  --brand-mid: #fb7185;
+  --brand-to: #fb923c;
+  --glow-color-dark: rgba(244, 63, 94, 0.28);
+  --glow-color-light: rgba(251, 146, 60, 0.10);
+  --shadow-color: rgba(251, 146, 60, 0.2);
+  --glow-color-dark-secondary: rgba(244, 63, 94, 0.20);
+}
+
+/* Backward-compat: legacy dark theme ids map to the new accent ids. */
+[data-theme='dark-violet'] { --primary-50: 238 242 255; --primary-100: 224 231 255; --primary-200: 199 210 254; --primary-300: 165 180 252; --primary-400: 129 140 248; --primary-500: 99 102 241; --primary-600: 79 70 229; --primary-700: 67 56 202; --primary-800: 55 48 163; --primary-900: 49 46 129; --primary-950: 30 27 75; --accent-50: 250 245 255; --accent-100: 243 232 255; --accent-200: 233 213 255; --accent-300: 216 180 254; --accent-400: 192 132 252; --accent-500: 168 85 247; --accent-600: 147 51 234; --accent-700: 126 34 206; --accent-800: 107 33 168; --accent-900: 88 28 135; --brand-from: #6366f1; --brand-mid: #7c3aed; --brand-to: #a855f7; --glow-color-dark: rgba(99, 102, 241, 0.28); --glow-color-light: rgba(99, 102, 241, 0.10); --shadow-color: rgba(124, 58, 237, 0.2); --glow-color-dark-secondary: rgba(168, 85, 247, 0.20); --surface-50: 15 23 42; --surface-100: 30 41 59; --surface-200: 51 65 85; --surface-300: 71 85 105; --surface-400: 100 116 139; --surface-500: 148 163 184; --surface-600: 203 213 225; --surface-700: 226 232 240; --surface-800: 241 245 249; --surface-900: 248 250 252; --surface-950: 10 15 25; --bg: #0b0f19; }
+[data-theme='cyber-emerald'] { --primary-50: 236 253 245; --primary-100: 209 250 229; --primary-200: 167 243 208; --primary-300: 110 231 183; --primary-400: 52 211 153; --primary-500: 16 185 129; --primary-600: 5 150 105; --primary-700: 4 120 87; --primary-800: 6 95 70; --primary-900: 6 78 59; --primary-950: 2 44 34; --accent-50: 236 254 255; --accent-100: 207 250 254; --accent-200: 165 243 252; --accent-300: 103 232 249; --accent-400: 34 211 238; --accent-500: 6 182 212; --accent-600: 8 145 178; --accent-700: 14 116 144; --accent-800: 21 94 117; --accent-900: 22 78 99; --brand-from: #10b981; --brand-mid: #0d9488; --brand-to: #06b6d4; --glow-color-dark: rgba(16, 185, 129, 0.14); --glow-color-light: rgba(16, 185, 129, 0.10); --shadow-color: rgba(6, 182, 212, 0.2); --glow-color-dark-secondary: rgba(16, 185, 129, 0.20); --surface-50: 3 7 6; --surface-100: 11 23 20; --surface-200: 19 42 36; --surface-300: 30 66 57; --surface-400: 45 92 80; --surface-500: 71 125 115; --surface-600: 134 190 179; --surface-700: 186 213 206; --surface-800: 219 235 231; --surface-900: 240 247 245; --surface-950: 3 10 8; --bg: #051311; }
+[data-theme='sunset-warmth'] { --primary-50: 255 241 242; --primary-100: 255 228 230; --primary-200: 254 205 211; --primary-300: 253 164 175; --primary-400: 251 113 133; --primary-500: 244 63 94; --primary-600: 225 29 72; --primary-700: 190 18 60; --primary-800: 159 18 57; --primary-900: 136 19 55; --primary-950: 76 5 25; --accent-50: 255 247 237; --accent-100: 255 237 213; --accent-200: 254 215 170; --accent-300: 253 186 116; --accent-400: 251 146 60; --accent-500: 251 146 60; --accent-600: 234 88 12; --accent-700: 194 65 12; --accent-800: 154 52 18; --accent-900: 124 45 18; --brand-from: #f43f5e; --brand-mid: #fb7185; --brand-to: #fb923c; --glow-color-dark: rgba(244, 63, 94, 0.14); --glow-color-light: rgba(251, 146, 60, 0.10); --shadow-color: rgba(251, 146, 60, 0.2); --glow-color-dark-secondary: rgba(244, 63, 94, 0.20); --surface-50: 20 13 24; --surface-100: 38 25 45; --surface-200: 58 38 68; --surface-300: 82 55 96; --surface-400: 108 74 127; --surface-500: 150 110 170; --surface-600: 200 168 214; --surface-700: 222 200 232; --surface-800: 240 229 245; --surface-900: 250 244 251; --surface-950: 16 9 20; --bg: #140d18; }
+
+/* ---- Mode palettes: DARK (surfaces / background) ------------------- */
+:root,
+[data-mode='dark'] {
+  /* Surface: dark slate */
+  --surface-50: 15 23 42;
+  --surface-100: 30 41 59;
+  --surface-200: 51 65 85;
+  --surface-300: 71 85 105;
+  --surface-400: 100 116 139;
+  --surface-500: 148 163 184;
+  --surface-600: 203 213 225;
+  --surface-700: 226 232 240;
+  --surface-800: 241 245 249;
+  --surface-900: 248 250 252;
+  --surface-950: 10 15 25;
+
+  --glow-color: var(--glow-color-dark, rgba(99, 102, 241, 0.28));
+  --glow-color-secondary: var(--glow-color-dark-secondary, rgba(124, 58, 237, 0.18));
+  --bg: #0b0f19;
+  --bg-glow: radial-gradient(1200px 900px at 50% -20%, var(--glow-color), transparent 60%), radial-gradient(900px 600px at 100% 0%, var(--glow-color-secondary), transparent 55%);
+}
+
+/* ---- Mode palettes: LIGHT (surfaces / background) ------------------ */
+[data-mode='light'] {
+  /* Surface: light slate (light-first; surfaces scale upward with tone) */
+  --surface-50: 248 250 252;
+  --surface-100: 241 245 249;
+  --surface-200: 226 232 240;
+  --surface-300: 203 213 225;
+  --surface-400: 148 163 184;
+  --surface-500: 100 116 139;
+  --surface-600: 71 85 105;
+  --surface-700: 51 65 85;
+  --surface-800: 30 41 59;
+  --surface-900: 15 23 42;
+  --surface-950: 2 6 23;
+
+  --glow-color: var(--glow-color-light, rgba(99, 102, 241, 0.10));
+  --bg: #f6f7fb;
+  --bg-glow: radial-gradient(1200px 600px at 50% -10%, var(--glow-color), transparent 60%);
+}
+
+[data-mode='light'] body {
+  color: #0f172a;
+}
+
+[data-mode='dark'] body {
+  color: #e2e8f0;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f8fafc;
-  color: #1e293b;
+  background-color: var(--bg);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Smooth theme transitions — with a snappier, more pleasing easing curve */
+body,
+.card,
+.nav-shell,
+.app-shell,
+.btn-primary,
+.btn-secondary,
+input,
+select,
+.text-transition,
+a,
+div[class*='bg-'],
+div[class*='border-'],
+span[class*='bg-'] {
+  transition: background-color 0.4s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1), color 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.app-shell {
+  background-color: var(--bg);
+  background-image: var(--bg-glow);
+  background-attachment: fixed;
+}
+
+/* Reusable component layers (theme-agnostic; colors come from Tailwind theme) */
+@layer components {
+  .card {
+    @apply bg-surface-100 border border-surface-300 rounded-2xl;
+  }
+
+  .card-hover {
+    @apply transition-all duration-400 ease-out will-change-transform hover:border-primary-300 hover:shadow-brand hover:-translate-y-1 active:translate-y-0 active:duration-200;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-gradient-to-br from-primary-500 to-primary-700 text-white rounded-xl px-4 py-2.5 text-sm font-medium shadow-brand-sm hover:opacity-95 hover:shadow-brand active:scale-[0.97] active:shadow-brand-sm active:opacity-100 disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2 transition-all duration-200 ease-out;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-surface-200 border border-surface-400 text-surface-700 rounded-xl px-4 py-2.5 text-sm font-medium hover:bg-surface-300 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100 focus:outline-none focus:ring-2 focus:ring-primary-400 transition-all duration-200 ease-out;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 text-sm text-surface-500 hover:text-surface-800 hover:bg-surface-300 px-3 py-2 rounded-lg active:scale-[0.96] transition-all duration-200 ease-out;
+  }
+
+  .input {
+    @apply w-full px-4 py-2.5 border border-surface-400 rounded-xl text-sm text-surface-700 placeholder-surface-500 bg-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-shadow;
+  }
+
+  .select {
+    @apply w-full text-sm border border-surface-400 rounded-lg px-3 py-1.5 bg-surface-200 focus:outline-none focus:ring-1 focus:ring-primary-500 transition-shadow;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-surface-600 mb-1;
+  }
+}
+
+/* ---- DARK MODE GLOW ---------------------------------------------------
+   In dark mode the same colored glows are amplified and projected onto
+   cards and buttons so the interface feels luminous, not flat. */
+[data-mode='dark'] {
+  --shadow-color: rgba(124, 58, 237, 0.45);
+}
+
+[data-mode='dark'][data-theme='emerald'] { --shadow-color: rgba(6, 182, 212, 0.45); }
+[data-mode='dark'][data-theme='sunset'] { --shadow-color: rgba(251, 146, 60, 0.45); }
+
+[data-mode='dark'] .card,
+[data-mode='dark'] .nav-shell {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 4px 24px -6px var(--shadow-color), inset 0 0 30px -20px var(--glow-color);
+}
+
+[data-mode='dark'] .card-hover:hover {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 40px -8px var(--shadow-color), 0 0 40px -8px var(--glow-color);
+}
+
+[data-mode='dark'] .btn-primary {
+  box-shadow: 0 2px 16px -4px var(--shadow-color), 0 0 30px -6px var(--glow-color);
+}
+
+[data-mode='dark'] .btn-primary:hover {
+  box-shadow: 0 4px 24px -6px var(--shadow-color), 0 0 50px -6px var(--glow-color);
+}
+
+[data-mode='dark'] .btn-primary:active {
+  box-shadow: 0 1px 8px -4px var(--shadow-color), 0 0 20px -8px var(--glow-color);
+}
+
+[data-mode='dark'] input:focus,
+[data-mode='dark'] select:focus {
+  box-shadow: 0 0 0 3px var(--ring-color, rgba(124, 58, 237, 0.25)), 0 0 24px -6px var(--glow-color);
+}
+
+/* Luminous accent fills (progress bars, status badges, checkmarks) */
+[data-mode='dark'] .bg-gradient-to-r,
+[data-mode='dark'] .bg-gradient-to-br {
+  filter: saturate(1.15) brightness(1.06);
+}
+
+/* ==========================================================================
+   MOTION & ANIMATION
+   A shared easing curve for buttery-smooth, weighty-feeling motion.
+   ========================================================================== */
+
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 200ms;
+  --dur-base: 400ms;
+}
+
+/* Countdown / timer tick (available for future use, kept ambient) */
+@keyframes tick {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+/* Gentle, pleasing fade + rise entrance used on cards & sections */
+@keyframes fade-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Pop-in with a tiny overshoot for satisfying reveals */
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.96); }
+  60% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Soft pulse for live/active indicators */
+@keyframes soft-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(0.9); }
+}
+
+/* Staggered entrance helper */
+.anim-fade-rise {
+  animation: fade-rise var(--dur-base) var(--ease-out-expo) both;
+}
+
+.anim-pop-in {
+  animation: pop-in 320ms var(--ease-out-back) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -24,10 +357,17 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+  background: var(--brand-mid);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--brand-to);
+  background-clip: content-box;
+}
+
+[data-mode='dark'] .google-button iframe {
+  filter: invert(1) hue-rotate(180deg);
 }
