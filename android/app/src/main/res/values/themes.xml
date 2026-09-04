@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.CambridgePapers" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">#FF2563EB</item>
-    </style>
-</resources>
