@@ -16,8 +16,8 @@ async function j(method, url, body, token) {
   const pass = [];
   const fail = [];
 
-  // Login
-  const login = await j('POST', '/auth/login', { email: 'admin@cambridgepapers.com', password: 'admin123' });
+  // Login (requires ADMIN_PASSWORD env var)
+  const login = await j('POST', '/auth/login', { email: 'admin@cambridgepapers.com', password: process.env.ADMIN_PASSWORD });
   const token = login.data.token;
   login.status === 200 ? pass.push('Login') : fail.push('Login');
 

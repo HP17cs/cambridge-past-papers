@@ -118,10 +118,10 @@ async function main() {
     check('filters have verificationStatuses', Array.isArray(filters.verificationStatuses) && filters.verificationStatuses.length === 2);
     check('filters have sessions', Array.isArray(filters.sessions) && filters.sessions.length > 0);
 
-    // Admin: sessions list for 4024
+    // Admin: sessions list for 4024 (requires ADMIN_PASSWORD env var)
     const adminLogin = await (await fetch(`${BASE}/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'admin@cambridgepapers.com', password: 'admin123' }),
+      body: JSON.stringify({ email: 'admin@cambridgepapers.com', password: process.env.ADMIN_PASSWORD }),
     })).json();
     const adminHeaders = { Authorization: `Bearer ${adminLogin.token}` };
     const sessions = await (await fetch(`${BASE}/admin/subjects/${m4024.id}/sessions`, { headers: adminHeaders })).json();
