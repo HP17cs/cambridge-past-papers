@@ -25,7 +25,7 @@ export default function MainTabs() {
   return (
     <View
       style={[
-        styles.bar,
+        styles.container,
         {
           backgroundColor: c.card,
           borderTopColor: c.border,
@@ -33,37 +33,43 @@ export default function MainTabs() {
         },
       ]}
     >
-      {TABS.map((tab) => {
-        const active = pathname === tab.route;
-        return (
-          <Pressable
-            key={tab.route}
-            onPress={() => {
-              if (!active) router.replace(tab.route as never);
-            }}
-            style={styles.tab}
-          >
-            <Ionicons name={active ? tab.activeIcon : tab.icon} size={22} color={active ? c.accent : c.subtext} />
-            <Text
-              style={[styles.label, { color: active ? c.accent : c.subtext }, active && { fontWeight: '700' }]}
-              numberOfLines={1}
+      <View style={styles.bar}>
+        {TABS.map((tab) => {
+          const active = pathname === tab.route;
+          return (
+            <Pressable
+              key={tab.route}
+              onPress={() => {
+                if (!active) router.replace(tab.route as never);
+              }}
+              style={styles.tab}
             >
-              {tab.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+              <Ionicons name={active ? tab.activeIcon : tab.icon} size={22} color={active ? c.accent : c.subtext} />
+              <Text
+                style={[styles.label, { color: active ? c.accent : c.subtext }, active && { fontWeight: '700' }]}
+                numberOfLines={1}
+              >
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={[styles.copyright, { color: c.subtext }]}>
+        {'\u00A9'} {new Date().getFullYear()} Cambridge Past Papers · Made by HP17
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { borderTopWidth: 1 },
   bar: {
     flexDirection: 'row',
-    borderTopWidth: 1,
     paddingTop: 8,
     paddingHorizontal: 4,
   },
   tab: { flex: 1, alignItems: 'center' },
   label: { fontSize: 10, marginTop: 3 },
+  copyright: { fontSize: 10, textAlign: 'center', marginTop: 4 },
 });

@@ -46,6 +46,11 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
+      <footer className="border-t border-slate-200 dark:border-slate-800 py-4 px-4">
+        <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+          © {new Date().getFullYear()} Cambridge Past Papers &middot; Made by HP17
+        </p>
+      </footer>
     </div>
   );
 }
