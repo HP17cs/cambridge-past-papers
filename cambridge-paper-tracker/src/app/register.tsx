@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, View, Text } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,41 +36,47 @@ export default function RegisterScreen() {
   };
 
   return (
-    <View style={[styles.wrap, { backgroundColor: c.bg }]}>
-      <LinearGradient colors={c.gradient} style={styles.logoWrap} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <Ionicons name="book" size={34} color="#fff" />
-      </LinearGradient>
-      <Title style={styles.heading}>Create account</Title>
-      <Subtitle style={styles.subheading}>Start tracking your Cambridge past papers</Subtitle>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={[styles.wrap, { backgroundColor: c.bg }]}>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <LinearGradient colors={c.gradient} style={styles.logoWrap} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <Ionicons name="book" size={34} color="#fff" />
+          </LinearGradient>
+          <Title style={styles.heading}>Create account</Title>
+          <Subtitle style={styles.subheading}>Start tracking your Cambridge past papers</Subtitle>
 
-      <View style={[styles.form, { backgroundColor: c.card, borderColor: c.border }]}>
-        {error ? (
-          <View style={[styles.errorBox, { backgroundColor: c.bad + '1a', borderColor: c.bad }]}>
-            <Text style={{ color: c.bad, fontSize: 13 }}>{error}</Text>
+          <View style={[styles.form, { backgroundColor: c.card, borderColor: c.border }]}>
+            {error ? (
+              <View style={[styles.errorBox, { backgroundColor: c.bad + '1a', borderColor: c.bad }]}>
+                <Text style={{ color: c.bad, fontSize: 13 }}>{error}</Text>
+              </View>
+            ) : null}
+
+            <TextField value={name} onChangeText={setName} placeholder="Full name" autoComplete="name" />
+            <TextField
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email (you@example.com)"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
+            <TextField value={password} onChangeText={setPassword} placeholder="Password (min 6 characters)" secureTextEntry autoComplete="password-new" />
+            <TextField value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm password" secureTextEntry autoComplete="password-new" />
+
+            <Button title={loading ? 'Creating account...' : 'Create Account'} onPress={handleSubmit} loading={loading} />
+            <Button title="Already have an account? Sign in" onPress={() => router.push('/login')} variant="ghost" textStyle={styles.ghostText} />
           </View>
-        ) : null}
-
-        <TextField value={name} onChangeText={setName} placeholder="Full name" autoComplete="name" />
-        <TextField
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Email (you@example.com)"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-        />
-        <TextField value={password} onChangeText={setPassword} placeholder="Password (min 6 characters)" secureTextEntry autoComplete="password-new" />
-        <TextField value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm password" secureTextEntry autoComplete="password-new" />
-
-        <Button title={loading ? 'Creating account...' : 'Create Account'} onPress={handleSubmit} loading={loading} />
-        <Button title="Already have an account? Sign in" onPress={() => router.push('/login')} variant="ghost" textStyle={styles.ghostText} />
+        </ScrollView>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, padding: 24, justifyContent: 'center' },
+  flex: { flex: 1 },
+  wrap: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 24 },
   logoWrap: { width: 72, height: 72, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 20 },
   logoText: { fontSize: 34 },
   heading: { textAlign: 'center' },

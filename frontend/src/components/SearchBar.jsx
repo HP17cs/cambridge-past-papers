@@ -11,7 +11,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search paper
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="input block pl-10 pr-10"
+        className="input block pl-10 pr-10 py-3 text-base"
       />
       {value && (
         <button

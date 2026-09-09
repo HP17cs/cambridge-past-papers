@@ -106,7 +106,7 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
             ? { backgroundColor: 'transparent', borderColor: c.border }
             : variant === 'ghost'
               ? { backgroundColor: 'transparent', borderColor: 'transparent' }
-              : {};
+              : { backgroundColor: c.accent };
   const fg = variant === 'primary' || variant === 'danger' || variant === 'success' ? '#ffffff' : c.accent;
   return (
     <Pressable
@@ -250,7 +250,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
-    marginBottom: 12,
   },
   button: {
     borderRadius: 12,

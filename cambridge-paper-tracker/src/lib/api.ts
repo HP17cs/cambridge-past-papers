@@ -12,10 +12,14 @@ import type {
   ToggleResponse,
 } from './types';
 
-// Base URL of the backend API.
+declare const process: { env: { EXPO_PUBLIC_API_URL?: string } };
+
+// Base URL of the backend API. Override per build with EXPO_PUBLIC_API_URL,
+// e.g. EXPO_PUBLIC_API_URL=https://yourdomain.com/api before eas build/update.
 // - Android emulator reaches the host PC via 10.0.2.2 (http://10.0.2.2:5000/api)
 // - A physical phone (Expo Go) needs the PC's LAN IP, e.g. http://192.168.x.x:5000/api
-export const API_BASE_URL = 'http://192.168.123.107:5000/api';
+const DEFAULT_API_BASE_URL = 'http://192.168.123.107:5000/api';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_BASE_URL;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -57,6 +61,11 @@ export async function login(email: string, password: string): Promise<AuthRespon
 
 export async function register(name: string, email: string, password: string): Promise<AuthResponse> {
   const { data } = await api.post('/auth/register', { name, email, password });
+  return data;
+}
+
+export async function googleLogin(credential: string): Promise<AuthResponse> {
+  const { data } = await api.post('/auth/google', { credential });
   return data;
 }
 

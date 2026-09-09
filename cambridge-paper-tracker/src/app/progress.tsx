@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useColors, Card, Title, Subtitle, SectionTitle, GradientBar, Badge, LoadingScreen, EmptyState } from '@/components/ui-kit';
+import { useColors, Card, Title, Subtitle, SectionTitle, GradientBar, Badge, LoadingScreen } from '@/components/ui-kit';
 import MainTabs from '@/components/main-tabs';
 import { useProgress } from '@/contexts/ProgressContext';
 import { getStats } from '@/lib/api';
@@ -87,8 +87,8 @@ export default function ProgressScreen() {
             <Text style={[styles.statLabel, { color: c.subtext }]}>Remaining</Text>
             <Text style={[styles.statValue, { color: c.accent }]}>{stats.remaining.toLocaleString()}</Text>
           </Card>
-          <Pressable onPress={() => router.push('/ignored')}>
-            <Card style={[styles.statCard, stats.ignored > 0 ? { borderColor: c.warn } : null]}>
+          <Pressable onPress={() => router.push('/ignored')} style={styles.statCard}>
+            <Card style={stats.ignored > 0 ? { borderColor: c.warn } : null}>
               <Text style={[styles.statLabel, { color: c.subtext }]}>Ignored</Text>
               <Text style={[styles.statValue, { color: stats.ignored > 0 ? c.warn : c.subtext }]}>{stats.ignored.toLocaleString()}</Text>
             </Card>
@@ -193,6 +193,6 @@ const styles = StyleSheet.create({
   recentName: { fontSize: 13, fontWeight: '500' },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionGrow: { flex: 1, marginBottom: 12, marginTop: 20 },
-  ignoredRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  ignoredRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   flex1: { flex: 1 },
 });

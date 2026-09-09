@@ -84,7 +84,7 @@ export default function DashboardScreen() {
         )}
 
         {stats && stats.total > 0 && (
-          <Card>
+          <Card style={styles.overallCard}>
             <Text style={[styles.cardTitle, { color: c.text }]}>Overall Progress</Text>
             <GradientBar value={stats.total > 0 ? stats.completed / stats.total : 0} height={10} />
             <Text style={[styles.cardMeta, { color: c.subtext, marginTop: 6 }]}>
@@ -100,7 +100,7 @@ export default function DashboardScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.subjectGrid}>
+        <View style={styles.subjectList}>
           {recentSubjects.map((subject) => (
             <Card key={subject.id} style={styles.subjectCard} onPress={() => router.push({ pathname: '/subject/[id]', params: { id: String(subject.id) } })}>
               <Text style={[styles.subjectName, { color: c.text }]} numberOfLines={2}>
@@ -180,13 +180,14 @@ const styles = StyleSheet.create({
   ignoredText: { fontSize: 13 },
   cardTitle: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
   cardMeta: { fontSize: 12 },
+  overallCard: { marginTop: 12 },
   rowHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   sectionGrow: { flex: 1, marginTop: 20, marginBottom: 0 },
   link: { fontSize: 14, fontWeight: '600', marginTop: 20 },
-  subjectGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
-  subjectCard: { width: '48.5%', marginBottom: 0 },
-  subjectName: { fontSize: 13, fontWeight: '600' },
-  subjectMeta: { fontSize: 11, marginTop: 4 },
+  subjectList: { gap: 12, marginTop: 4 },
+  subjectCard: { marginBottom: 0 },
+  subjectName: { fontSize: 15, fontWeight: '600' },
+  subjectMeta: { fontSize: 13, marginTop: 6 },
   progressRow: { marginBottom: 8 },
   progressRowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   progressName: { fontSize: 13, fontWeight: '500', flex: 1, marginRight: 8 },

@@ -1,0 +1,16 @@
+[Unit]
+Description=Cambridge Past Papers platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/cambridge-past-papers/backend
+EnvironmentFile=/etc/cambridge.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

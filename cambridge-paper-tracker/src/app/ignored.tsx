@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { padding: 16, paddingBottom: 24 },
   list: { marginTop: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   name: { fontSize: 14, fontWeight: '500' },
   meta: { fontSize: 12, marginTop: 2 },
   restore: { fontSize: 14, fontWeight: '600' },

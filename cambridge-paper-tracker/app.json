@@ -8,6 +8,7 @@
     "scheme": "cambridgepapertracker",
     "userInterfaceStyle": "automatic",
     "android": {
+      "package": "com.cambridgepapertracker.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -20,6 +21,9 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+    "ios": {
+      "bundleIdentifier": "com.cambridgepapertracker.app"
+    },
     "plugins": [
       "expo-router",
       [
@@ -30,7 +34,8 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -42,6 +47,12 @@
         "projectId": "b9348ea4-7b7d-4566-8f15-00bd06ef0cd6"
       }
     },
-    "owner": "hp1710999s-team"
+    "owner": "hp1710999s-team",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/b9348ea4-7b7d-4566-8f15-00bd06ef0cd6"
+    }
   }
 }

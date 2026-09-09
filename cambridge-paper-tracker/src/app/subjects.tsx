@@ -88,7 +88,7 @@ export default function SubjectsScreen() {
           ))}
         </ScrollView>
 
-        <View style={styles.grid}>
+        <View style={styles.list}>
           {filtered.map((subject) => (
             <Card key={subject.id} style={styles.subjectCard} onPress={() => router.push({ pathname: '/subject/[id]', params: { id: String(subject.id) } })}>
               <Text style={[styles.name, { color: c.text }]} numberOfLines={2}>
@@ -119,9 +119,9 @@ const styles = StyleSheet.create({
   search: { marginTop: 16 },
   chips: { flexDirection: 'row', marginBottom: 16 },
   chip: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, marginRight: 8 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
-  subjectCard: { width: '48.5%', marginBottom: 0, minHeight: 104 },
-  name: { fontSize: 14, fontWeight: '600' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  code: { fontSize: 12, fontWeight: '500' },
+  list: { gap: 12, marginTop: 16 },
+  subjectCard: { marginBottom: 0 },
+  name: { fontSize: 15, fontWeight: '600' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  code: { fontSize: 13, fontWeight: '600' },
 });

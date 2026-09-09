@@ -61,12 +61,12 @@ export default function Subjects() {
         <p className="text-slate-500 mt-1 dark:text-slate-400">{subjects.length} subjects available</p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search subjects..." className="flex-1" />
+      <div className="space-y-3">
+        <SearchBar value={search} onChange={setSearch} placeholder="Search subjects..." className="w-full" />
         <select
           value={qualification}
           onChange={(e) => setQualification(e.target.value)}
-          className="select px-4 py-2.5 rounded-xl"
+          className="select px-4 py-2.5 rounded-xl sm:w-72"
         >
           <option value="">All Qualifications</option>
           {qualifications.map(q => (
