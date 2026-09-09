@@ -14,11 +14,9 @@ import type {
 
 declare const process: { env: { EXPO_PUBLIC_API_URL?: string } };
 
-// Base URL of the backend API. Override per build with EXPO_PUBLIC_API_URL,
-// e.g. EXPO_PUBLIC_API_URL=https://yourdomain.com/api before eas build/update.
-// - Android emulator reaches the host PC via 10.0.2.2 (http://10.0.2.2:5000/api)
-// - A physical phone (Expo Go) needs the PC's LAN IP, e.g. http://192.168.x.x:5000/api
-const DEFAULT_API_BASE_URL = 'http://192.168.123.107:5000/api';
+// Base URL of the backend API. Points at the production API by default;
+// override per build with EXPO_PUBLIC_API_URL (e.g. for a local dev server).
+const DEFAULT_API_BASE_URL = 'https://cambridgepapertracker.duckdns.org/api';
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_BASE_URL;
 
 export const api = axios.create({
