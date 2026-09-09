@@ -375,11 +375,18 @@ router.post('/import/papers', upload.single('file'), (req, res) => {
   }
 });
 
-// Users
+// Users (emails are masked to protect PII)
 router.get('/users', (req, res) => {
   try {
     const users = db.prepare('SELECT id, name, email, is_admin, created_at, last_login FROM users ORDER BY created_at DESC').all();
-    res.json(users);
+    const masked = users.map((u) => {
+      const [local, domain] = String(u.email || '').split('@');
+      const maskedEmail = domain
+        ? `${local.charAt(0)}${'*'.repeat(Math.max(1, local.length - 1))}@${domain}`
+        : String(u.email || '');
+      return { ...u, email: maskedEmail };
+    });
+    res.json(masked);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch users' });
   }

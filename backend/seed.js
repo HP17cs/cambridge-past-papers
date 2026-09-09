@@ -210,17 +210,22 @@ function seed() {
     process.exit(1);
   }
 
-  // Ensure admin user
+  // Ensure admin user with a strong random password
   const existingAdmin = db.prepare(
     "SELECT id FROM users WHERE email = 'admin@cambridgepapers.com'"
   ).get();
+  const adminPassword = crypto.randomBytes(18).toString('base64url');
+  const adminHash = hashPassword(adminPassword);
   if (!existingAdmin) {
-    const hash = hashPassword('admin123');
     db.prepare(
       "INSERT INTO users (name, email, password_hash, is_admin) VALUES (?, ?, ?, 1)"
-    ).run('Administrator', 'admin@cambridgepapers.com', hash);
-    console.log('Created admin user: admin@cambridgepapers.com / admin123');
+    ).run('Administrator', 'admin@cambridgepapers.com', adminHash);
+  } else {
+    db.prepare(
+      "UPDATE users SET password_hash = ?, is_admin = 1 WHERE id = ?"
+    ).run(adminHash, existingAdmin.id);
   }
+  console.log(`\nAdmin credentials (SAVE THIS — shown once):\n  Email:    admin@cambridgepapers.com\n  Password: ${adminPassword}\n`);
 
   // Summary
   console.log('\n=== Seed Complete ===');

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 const { initDatabase } = require('./database');
 
 const authRoutes = require('./routes/auth');
@@ -17,14 +18,34 @@ initDatabase();
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173', credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts, please try again later.' },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+
 // Public routes
+app.use('/api/auth', authLimiter);
 app.use('/api/auth', authRoutes);
+app.use('/api/papers', apiLimiter);
 app.use('/api/papers', papersRoutes);
 
 // Protected routes
+app.use('/api/progress', apiLimiter);
 app.use('/api/progress', progressRoutes);
 
 // Admin routes
+app.use('/api/admin', apiLimiter);
 app.use('/api/admin', adminRoutes);
 
 // Health check

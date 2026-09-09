@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { db } = require('../database');
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -18,7 +19,11 @@ function authenticateToken(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-  if (!req.user || !req.user.isAdmin) {
+  if (!req.user || !req.user.id) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  const row = db.prepare('SELECT is_admin FROM users WHERE id = ?').get(req.user.id);
+  if (!row || !row.is_admin) {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();

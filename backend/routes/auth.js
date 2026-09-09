@@ -151,7 +151,9 @@ router.post('/forgot-password', (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
-    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    // Deliberately do NOT query the DB here — answering identically for known
+    // and unknown emails prevents account enumeration. (No reset emails are
+    // actually sent yet; this endpoint returns the same generic message.)
     res.json({ message: 'If an account exists, a reset link has been sent.' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to process request' });
