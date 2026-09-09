@@ -47,11 +47,11 @@ GOOGLE_CLIENT_ID=739014927949-qravqicds39a7972vk67cqvjd8uvv6nj.apps.googleuserco
 CORS_ORIGIN=https://$DOMAIN
 EOF
 
-cp "$(dirname "$0")/cambridge.service" /etc/systemd/system/cambridge.service
+cp "$APP_DIR/deploy/cambridge.service" /etc/systemd/system/cambridge.service
 systemctl daemon-reload
 systemctl enable --now cambridge
 
-sed "s/__DOMAIN__/$DOMAIN/g" "$(dirname "$0")/nginx-cambridge.conf" > /etc/nginx/sites-available/cambridge
+sed "s/__DOMAIN__/$DOMAIN/g" "$APP_DIR/deploy/nginx-cambridge.conf" > /etc/nginx/sites-available/cambridge
 ln -sf /etc/nginx/sites-available/cambridge /etc/nginx/sites-enabled/cambridge
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
