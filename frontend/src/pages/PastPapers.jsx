@@ -5,8 +5,11 @@ import SearchBar from '../components/SearchBar';
 import FilterPanel from '../components/FilterPanel';
 import PaperCard from '../components/PaperCard';
 import { useProgress } from '../contexts/ProgressContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function PastPapers() {
+  const { preferences } = useAuth();
+  const selectedSet = new Set(preferences?.subject_ids || []);
   const [searchParams] = useSearchParams();
   const [papers, setPapers] = useState([]);
   const [filters, setFilters] = useState({});
@@ -41,13 +44,16 @@ export default function PastPapers() {
     const loadFilters = async () => {
       try {
         const { data } = await api.get('/papers/filters');
+        if (preferences?.show_only_selected_subjects) {
+          data.subjects = data.subjects.filter((s) => selectedSet.has(s.id));
+        }
         setFilters(data);
       } catch (err) {
         console.error('Failed to load filters:', err);
       }
     };
     loadFilters();
-  }, []);
+  }, [preferences?.show_only_selected_subjects]);
 
   const loadPapers = useCallback(async (overrides = {}) => {
     try {
@@ -144,13 +150,18 @@ export default function PastPapers() {
           No papers found matching your criteria.
         </div>
       ) : search.toLowerCase().includes('paper') || activeFilters.subject || activeFilters.paper_number ? (
-        <GroupedPapers papers={papers} />
+        <GroupedPapers papers={papers} selectedSet={selectedSet} />
       ) : (
         <div className="space-y-4">
           {papers.map(paper => (
             <div key={paper.id}>
-              <div className="text-xs text-slate-400 mb-1 ml-1 dark:text-slate-500">
-                {paper.subject_name} &middot; {paper.subject_code} &middot; {paper.qualification_short_name}
+              <div className="text-xs text-slate-400 mb-1 ml-1 flex items-center gap-2 dark:text-slate-500">
+                <span>{paper.subject_name} &middot; {paper.subject_code} &middot; {paper.qualification_short_name}</span>
+                {selectedSet.has(paper.subject_id) && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] bg-primary-50 text-primary-700 px-1.5 py-0.5 rounded-full font-medium dark:bg-primary-500/15 dark:text-primary-300">
+                    ✓ Your Subject
+                  </span>
+                )}
               </div>
               <PaperCard paper={paper} />
             </div>
@@ -181,7 +192,7 @@ export default function PastPapers() {
   );
 }
 
-function GroupedPapers({ papers }) {
+function GroupedPapers({ papers, selectedSet }) {
   const [openState, setOpenState] = useState({});
   const { countCompleted, countIgnored } = useProgress();
   const { isCompleted, isIgnored } = useProgress();
@@ -190,7 +201,7 @@ function GroupedPapers({ papers }) {
   const bySubject = {};
   for (const p of papers) {
     const sid = p.subject_id;
-    if (!bySubject[sid]) bySubject[sid] = { name: p.subject_name, code: p.subject_code, qualification: p.qualification_short_name, years: {} };
+    if (!bySubject[sid]) bySubject[sid] = { id: sid, name: p.subject_name, code: p.subject_code, qualification: p.qualification_short_name, years: {} };
     if (!bySubject[sid].years[p.year]) bySubject[sid].years[p.year] = {};
     if (!bySubject[sid].years[p.year][p.session]) bySubject[sid].years[p.year][p.session] = {};
     if (!bySubject[sid].years[p.year][p.session][p.paper_number]) bySubject[sid].years[p.year][p.session][p.paper_number] = [];
@@ -206,7 +217,14 @@ function GroupedPapers({ papers }) {
       {Object.values(bySubject).map(subject => (
         <div key={subject.code} className="card p-4">
           <div className="mb-3">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">{subject.name}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{subject.name}</h3>
+              {selectedSet && selectedSet.has(subject.id) && (
+                <span className="inline-flex items-center gap-0.5 text-[11px] bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full font-medium dark:bg-primary-500/15 dark:text-primary-300">
+                  ✓ Your Subject
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">{subject.code} &middot; {subject.qualification}</p>
           </div>
           <div className="space-y-4">

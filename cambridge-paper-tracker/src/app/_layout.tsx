@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ProgressProvider } from '@/contexts/ProgressContext';
 
 function RootNavigator() {
-  const { user, loading } = useAuth();
+  const { user, preferences, loading } = useAuth();
   const { isDark } = useTheme();
 
   if (loading) {
@@ -15,12 +15,13 @@ function RootNavigator() {
   }
 
   const authed = !!user;
+  const needsOnboarding = authed && !!preferences && !preferences.onboarding_completed;
 
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Protected guard={authed}>
+        <Stack.Protected guard={authed && !needsOnboarding}>
           <Stack.Screen name="dashboard" />
           <Stack.Screen name="subjects" />
           <Stack.Screen name="papers" />
@@ -29,6 +30,9 @@ function RootNavigator() {
           <Stack.Screen name="settings" />
           <Stack.Screen name="subject/[id]" />
           <Stack.Screen name="paper/[id]" />
+        </Stack.Protected>
+        <Stack.Protected guard={authed}>
+          <Stack.Screen name="onboarding" />
         </Stack.Protected>
         <Stack.Protected guard={!authed}>
           <Stack.Screen name="login" />

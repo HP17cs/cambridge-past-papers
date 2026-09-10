@@ -10,6 +10,7 @@ import type {
   Subject,
   SubjectDetailResponse,
   ToggleResponse,
+  UserPreferences,
 } from './types';
 
 declare const process: { env: { EXPO_PUBLIC_API_URL?: string } };
@@ -114,6 +115,20 @@ export async function toggleIgnore(paperId: number): Promise<ToggleResponse> {
 
 export async function updateMe(payload: { name?: string; currentPassword?: string; newPassword?: string }): Promise<{ message: string }> {
   const { data } = await api.put('/auth/me', payload);
+  return data;
+}
+
+export async function getPreferences(): Promise<UserPreferences> {
+  const { data } = await api.get('/preferences');
+  return data;
+}
+
+export async function savePreferences(payload: {
+  subject_ids?: number[];
+  show_only_selected_subjects?: boolean;
+  onboarding_completed?: boolean;
+}): Promise<UserPreferences> {
+  const { data } = await api.put('/preferences', payload);
   return data;
 }
 

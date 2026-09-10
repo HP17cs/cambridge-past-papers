@@ -163,11 +163,21 @@ export interface AuthUser {
   email: string;
   isAdmin: boolean;
   profilePicture?: string | null;
+  onboarding_completed?: boolean;
+  show_only_selected_subjects?: boolean;
 }
 
 export interface AuthResponse {
   token: string;
   user: AuthUser;
+}
+
+export interface UserPreferences {
+  onboarding_completed: boolean;
+  show_only_selected_subjects: boolean;
+  preferences_updated_at: string | null;
+  subject_ids: number[];
+  subjects: Subject[];
 }
 
 export interface ToggleResponse {

@@ -6,12 +6,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, Card, Title, Subtitle, TextField, Badge, LoadingScreen, EmptyState } from '@/components/ui-kit';
 import MainTabs from '@/components/main-tabs';
 import { getSubjects } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Subject } from '@/lib/types';
 
 export default function SubjectsScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { preferences } = useAuth();
+  const selectedSet = new Set(preferences?.subject_ids || []);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [filtered, setFiltered] = useState<Subject[]>([]);
   const [search, setSearch] = useState('');
@@ -91,9 +94,12 @@ export default function SubjectsScreen() {
         <View style={styles.list}>
           {filtered.map((subject) => (
             <Card key={subject.id} style={styles.subjectCard} onPress={() => router.push({ pathname: '/subject/[id]', params: { id: String(subject.id) } })}>
-              <Text style={[styles.name, { color: c.text }]} numberOfLines={2}>
-                {subject.name}
-              </Text>
+              <View style={styles.nameRow}>
+                <Text style={[styles.name, { color: c.text }]} numberOfLines={2}>
+                  {subject.name}
+                </Text>
+                {selectedSet.has(subject.id) ? <Badge label="✓ Your Subject" color={c.accent} bg={c.accentSoft} style={styles.yourBadge} /> : null}
+              </View>
               <View style={styles.metaRow}>
                 <Text style={[styles.code, { color: c.subtext }]}>{subject.code}</Text>
                 {subject.qualification_short_name ? (
@@ -121,7 +127,9 @@ const styles = StyleSheet.create({
   chip: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, marginRight: 8 },
   list: { gap: 12, marginTop: 16 },
   subjectCard: { marginBottom: 0 },
-  name: { fontSize: 15, fontWeight: '600' },
+  nameRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  yourBadge: { marginLeft: 4 },
+  name: { fontSize: 15, fontWeight: '600', flex: 1 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   code: { fontSize: 13, fontWeight: '600' },
 });

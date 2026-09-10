@@ -9,7 +9,7 @@ import { Button, TextField, Title, Subtitle, useColors } from '@/components/ui-k
 import { errorMessage } from '@/lib/api';
 
 export default function RegisterScreen() {
-  const { register } = useAuth();
+  const { register, preferences } = useAuth();
   const c = useColors();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,7 +27,7 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await register(name.trim(), email.trim(), password);
-      router.replace('/dashboard');
+      router.replace(preferences && !preferences.onboarding_completed ? '/onboarding' : '/dashboard');
     } catch (err) {
       setError(errorMessage(err, 'Registration failed'));
     } finally {

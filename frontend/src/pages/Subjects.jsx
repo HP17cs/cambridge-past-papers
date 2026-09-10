@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import api from '../api';
 import SubjectCard from '../components/SubjectCard';
 import SearchBar from '../components/SearchBar';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Subjects() {
+  const { preferences } = useAuth();
+  const selectedSet = new Set(preferences?.subject_ids || []);
   const [subjects, setSubjects] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [search, setSearch] = useState('');
@@ -82,7 +85,7 @@ export default function Subjects() {
             className="anim-fade-rise"
             style={{ animationDelay: `${Math.min(i * 40, 400)}ms` }}
           >
-            <SubjectCard subject={subject} />
+            <SubjectCard subject={subject} selected={selectedSet.has(subject.id)} />
           </div>
         ))}
       </div>

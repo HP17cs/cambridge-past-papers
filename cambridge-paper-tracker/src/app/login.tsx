@@ -15,12 +15,14 @@ GoogleSignin.configure({
 });
 
 export default function LoginScreen() {
-  const { login, googleLogin } = useAuth();
+  const { login, googleLogin, preferences } = useAuth();
   const c = useColors();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const home = () => router.replace(preferences && !preferences.onboarding_completed ? '/onboarding' : '/dashboard');
 
   const handleGoogleSignIn = async () => {
     setError('');
@@ -34,7 +36,7 @@ export default function LoginScreen() {
         return;
       }
       await googleLogin(idToken);
-      router.replace('/dashboard');
+      home();
     } catch (err) {
       if (isErrorWithCode(err)) {
         if (err.code === statusCodes.SIGN_IN_CANCELLED || err.code === statusCodes.IN_PROGRESS) {
@@ -52,7 +54,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email.trim(), password);
-      router.replace('/dashboard');
+      home();
     } catch (err) {
       setError(errorMessage(err, 'Login failed'));
     } finally {

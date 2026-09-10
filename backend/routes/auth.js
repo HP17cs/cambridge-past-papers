@@ -35,7 +35,7 @@ router.post('/register', (req, res) => {
     const hash = hashPassword(password);
     const result = db.prepare('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)').run(name, email, hash);
     const token = jwt.sign({ id: result.lastInsertRowid, email, name, isAdmin: false }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-    res.json({ token, user: { id: result.lastInsertRowid, name, email, isAdmin: false } });
+    res.json({ token, user: { id: result.lastInsertRowid, name, email, isAdmin: false, onboarding_completed: false, show_only_selected_subjects: false } });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Registration failed' });
@@ -57,7 +57,7 @@ router.post('/login', (req, res) => {
     }
     db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
     const token = jwt.sign({ id: user.id, email: user.email, name: user.name, isAdmin: !!user.is_admin }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, isAdmin: !!user.is_admin, profilePicture: user.profile_picture } });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, isAdmin: !!user.is_admin, profilePicture: user.profile_picture, onboarding_completed: !!user.onboarding_completed, show_only_selected_subjects: !!user.show_only_selected_subjects } });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
@@ -93,10 +93,10 @@ router.post('/google', async (req, res) => {
       db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, google_id = COALESCE(google_id, ?) WHERE id = ?').run(googleId, user.id);
     } else {
       const result = db.prepare('INSERT INTO users (name, email, google_id, profile_picture) VALUES (?, ?, ?, ?)').run(name, email, googleId, profilePicture);
-      user = { id: result.lastInsertRowid, name, email, is_admin: 0, profile_picture: profilePicture };
+      user = { id: result.lastInsertRowid, name, email, is_admin: 0, profile_picture: profilePicture, onboarding_completed: 0, show_only_selected_subjects: 0 };
     }
     const token = jwt.sign({ id: user.id, email: user.email, name: user.name, isAdmin: !!user.is_admin }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, isAdmin: !!user.is_admin, profilePicture: user.profile_picture } });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, isAdmin: !!user.is_admin, profilePicture: user.profile_picture, onboarding_completed: !!user.onboarding_completed, show_only_selected_subjects: !!user.show_only_selected_subjects } });
   } catch (err) {
     console.error('Google auth error:', err);
     res.status(500).json({ error: 'Google authentication failed' });
@@ -105,9 +105,9 @@ router.post('/google', async (req, res) => {
 
 router.get('/me', authenticateToken, (req, res) => {
   try {
-    const user = db.prepare('SELECT id, name, email, is_admin, profile_picture, created_at, last_login FROM users WHERE id = ?').get(req.user.id);
+    const user = db.prepare('SELECT id, name, email, is_admin, profile_picture, created_at, last_login, onboarding_completed, show_only_selected_subjects, preferences_updated_at FROM users WHERE id = ?').get(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json({ ...user, isAdmin: !!user.is_admin });
+    res.json({ ...user, isAdmin: !!user.is_admin, onboarding_completed: !!user.onboarding_completed, show_only_selected_subjects: !!user.show_only_selected_subjects });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch user' });
   }
@@ -140,6 +140,7 @@ router.put('/me', authenticateToken, (req, res) => {
 router.delete('/me', authenticateToken, (req, res) => {
   try {
     db.prepare('DELETE FROM user_progress WHERE user_id = ?').run(req.user.id);
+    db.prepare('DELETE FROM user_subjects WHERE user_id = ?').run(req.user.id);
     db.prepare('DELETE FROM users WHERE id = ?').run(req.user.id);
     res.json({ message: 'Account deleted' });
   } catch (err) {

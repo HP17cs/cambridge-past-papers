@@ -11,7 +11,7 @@ import { useTheme, THEMES } from '@/contexts/ThemeContext';
 import { updateMe, deleteMe, errorMessage } from '@/lib/api';
 
 export default function SettingsScreen() {
-  const { user, updateUser, logout } = useAuth();
+  const { user, preferences, updateUser, logout } = useAuth();
   const { theme, themes, setTheme, mode, toggleMode } = useTheme();
   const c = useColors();
   const insets = useSafeAreaInsets();
@@ -69,6 +69,16 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Title>Settings</Title>
         <Subtitle>Manage your account</Subtitle>
+
+        <SectionTitle>Subject Preferences</SectionTitle>
+        <Card>
+          <Text style={[styles.rowLabel, { color: c.text }]}>Your subjects</Text>
+          <Text style={{ color: c.subtext, fontSize: 12, marginBottom: 12 }}>
+            {(preferences?.subject_ids?.length || 0)} subject{(preferences?.subject_ids?.length || 0) === 1 ? '' : 's'} selected ·{' '}
+            {preferences?.show_only_selected_subjects ? 'only showing your subjects' : 'showing all subjects'}
+          </Text>
+          <Button title="Edit Preferences" onPress={() => router.push('/onboarding')} />
+        </Card>
 
         <SectionTitle>Appearance</SectionTitle>
         <Card>

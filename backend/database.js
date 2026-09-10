@@ -36,7 +36,10 @@ function initDatabase() {
       profile_picture TEXT,
       is_admin INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      last_login DATETIME DEFAULT CURRENT_TIMESTAMP
+      last_login DATETIME DEFAULT CURRENT_TIMESTAMP,
+      onboarding_completed INTEGER DEFAULT 0,
+      show_only_selected_subjects INTEGER DEFAULT 0,
+      preferences_updated_at DATETIME
     );
 
     CREATE TABLE IF NOT EXISTS qualifications (
@@ -159,7 +162,28 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_progress_user_variant ON user_progress(user_id, variant_id);
     CREATE INDEX IF NOT EXISTS idx_subjects_code ON subjects(code);
     CREATE INDEX IF NOT EXISTS idx_subjects_qualification ON subjects(qualification_id);
+
+    -- A user's selected subjects (onboarding / subject preferences). The rows
+    -- are scoped to the authenticated user server-side; clients never supply a
+    -- user id.
+    CREATE TABLE IF NOT EXISTS user_subjects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      subject_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+      UNIQUE(user_id, subject_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_user_subjects_user ON user_subjects(user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_subjects_subject ON user_subjects(subject_id);
   `);
+
+  // Apply column-level migrations whenever the DB is initialized so existing
+  // databases get schema additions even though CREATE TABLE IF NOT EXISTS
+  // leaves untouched tables alone. migrate() is idempotent (PRAGMA-guarded).
+  migrate();
 }
 
 // ---------------------------------------------------------------------------
@@ -197,6 +221,21 @@ function migrate() {
   const progressHasIgnored = hasProgressOldFk ? db.prepare('PRAGMA table_info(user_progress)').all().some((c) => c.name === 'ignored') : false;
   if (hasProgressOldFk && !progressHasIgnored) {
     db.exec('ALTER TABLE user_progress ADD COLUMN ignored INTEGER DEFAULT 0');
+  }
+
+  // Migration: subject-preference columns on users (PART: onboarding).
+  const usersTableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").get();
+  if (usersTableExists) {
+    const userCols = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+    if (!userCols.includes('onboarding_completed')) {
+      db.exec('ALTER TABLE users ADD COLUMN onboarding_completed INTEGER DEFAULT 0');
+    }
+    if (!userCols.includes('show_only_selected_subjects')) {
+      db.exec('ALTER TABLE users ADD COLUMN show_only_selected_subjects INTEGER DEFAULT 0');
+    }
+    if (!userCols.includes('preferences_updated_at')) {
+      db.exec('ALTER TABLE users ADD COLUMN preferences_updated_at DATETIME');
+    }
   }
 
   void hasPapers;

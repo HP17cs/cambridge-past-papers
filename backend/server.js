@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const papersRoutes = require('./routes/papers');
 const progressRoutes = require('./routes/progress');
 const adminRoutes = require('./routes/admin');
+const preferencesRoutes = require('./routes/preferences');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -43,6 +44,8 @@ app.use('/api/papers', papersRoutes);
 // Protected routes
 app.use('/api/progress', apiLimiter);
 app.use('/api/progress', progressRoutes);
+app.use('/api/preferences', apiLimiter);
+app.use('/api/preferences', preferencesRoutes);
 
 // Admin routes
 app.use('/api/admin', apiLimiter);
@@ -82,6 +85,8 @@ app.listen(PORT, () => {
   console.log('  POST   /api/progress/ignore');
   console.log('  POST   /api/progress/bulk-toggle');
   console.log('  GET    /api/progress/subject/:id');
+  console.log('  GET    /api/preferences');
+  console.log('  PUT    /api/preferences');
   console.log('  GET    /api/admin/subjects');
   console.log('  POST   /api/admin/subjects');
   console.log('  PUT    /api/admin/subjects/:id');

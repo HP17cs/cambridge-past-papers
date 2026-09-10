@@ -5,7 +5,7 @@ import ThemeSelector from '../components/ThemeSelector';
 import api from '../api';
 
 export default function Settings() {
-  const { user, updateUser, logout } = useAuth();
+  const { user, preferences, updateUser, logout } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState(user?.name || '');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -58,6 +58,25 @@ export default function Settings() {
             <p className="text-xs text-slate-500 dark:text-slate-400">Pick a color scheme for the app</p>
           </div>
           <ThemeSelector />
+        </div>
+      </div>
+
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4 dark:text-white">Subject Preferences</h2>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-slate-900 dark:text-white">Your subjects</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {(preferences?.subject_ids?.length || 0)} subject{(preferences?.subject_ids?.length || 0) === 1 ? '' : 's'} selected &middot;{' '}
+              {preferences?.show_only_selected_subjects ? 'only showing your subjects' : 'showing all subjects'}
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/onboarding?edit=1')}
+            className="btn-primary"
+          >
+            Edit Preferences
+          </button>
         </div>
       </div>
 

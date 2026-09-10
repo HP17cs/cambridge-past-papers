@@ -6,6 +6,7 @@ import { useColors, Card, Title, Subtitle, LoadingScreen, EmptyState, Badge } fr
 import MainTabs from '@/components/main-tabs';
 import { PaperRow } from '@/components/paper-row';
 import { getFilters, getPapers } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Filters, PaperVariant } from '@/lib/types';
 
 const SORT_OPTIONS = [
@@ -40,6 +41,8 @@ const EMPTY: ActiveFilters = {
 export default function PapersScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const { preferences } = useAuth();
+  const selectedSet = new Set(preferences?.subject_ids || []);
   const [papers, setPapers] = useState<PaperVariant[]>([]);
   const [filters, setFilters] = useState<Filters | null>(null);
   const [total, setTotal] = useState(0);
@@ -66,9 +69,15 @@ export default function PapersScreen() {
 
   useEffect(() => {
     getFilters()
-      .then(setFilters)
+      .then((data) => {
+        if (preferences?.show_only_selected_subjects) {
+          data = { ...data, subjects: (data.subjects || []).filter((s) => selectedSet.has(s.id)) };
+        }
+        setFilters(data);
+      })
       .catch((err) => console.error('Failed to load filters:', err));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferences?.show_only_selected_subjects]);
 
   useEffect(() => {
     loadPapers();
@@ -191,6 +200,7 @@ export default function PapersScreen() {
                   <Text style={[styles.subjName, { color: c.text }]} numberOfLines={1}>
                     {group.name}
                   </Text>
+                  {selectedSet.has(group.subjectId) ? <Badge label="✓ Your Subject" color={c.accent} bg={c.accentSoft} /> : null}
                   <Badge label={group.code} color={c.subtext} bg={c.border} />
                 </View>
                 {group.papers.map((p) => (
@@ -243,12 +253,12 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
   );
 }
 
-function groupBySubject(papers: PaperVariant[]): { code: string; name: string; papers: PaperVariant[] }[] {
-  const map = new Map<string, { code: string; name: string; papers: PaperVariant[] }>();
+function groupBySubject(papers: PaperVariant[]): { subjectId: number; code: string; name: string; papers: PaperVariant[] }[] {
+  const map = new Map<number, { subjectId: number; code: string; name: string; papers: PaperVariant[] }>();
   for (const p of papers) {
-    const key = `${p.subject_id}`;
+    const key = p.subject_id;
     if (!map.has(key)) {
-      map.set(key, { code: p.subject_code, name: p.subject_name, papers: [] });
+      map.set(key, { subjectId: key, code: p.subject_code, name: p.subject_name, papers: [] });
     }
     map.get(key)!.papers.push(p);
   }

@@ -281,6 +281,16 @@ router.get('/', authenticateToken, (req, res) => {
 
     const uid = req.user ? req.user.id : null;
 
+    // When the user has opted to only see their selected subjects, restrict the
+    // result set to paper variants whose subject is in their user_subjects set.
+    if (uid) {
+      const prefs = db.prepare('SELECT show_only_selected_subjects FROM users WHERE id = ?').get(uid);
+      if (prefs && prefs.show_only_selected_subjects) {
+        conditions.push('s.id IN (SELECT subject_id FROM user_subjects WHERE user_id = ?)');
+        params.push(uid);
+      }
+    }
+
     if (status === 'completed' && uid) {
       conditions.push('up.completed = 1 AND up.user_id = ?'); params.push(uid);
     } else if (status === 'not_completed' && uid) {
